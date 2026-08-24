@@ -486,7 +486,7 @@
     <div id="feedback" class="feedback"></div>
 
     <div class="footer-note">
-        <span>✓</span> Dados enviados para a planilha Google
+        <span>✓</span> Dados enviados diretamente para a planilha Google
     </div>
 </div>
 
@@ -495,22 +495,10 @@
         'use strict';
 
         // ================================================================
-        // 1. CONFIGURAÇÃO - PREENCHA COM SEUS DADOS
+        // 1. CONFIGURAÇÃO - URL DO WEB APP
         // ================================================================
-        
-        // IDs do seu formulário (já configurados)
-        const FORM_IDS = {
-            data: 'entry.1193135199',
-            nome: 'entry.401485485',
-            movimentacao: 'entry.966204836',
-            tipo: 'entry.1354237173',
-            valor: 'entry.1472286949',
-            foto: 'entry.1927179603'
-        };
-        
-        // URL do seu formulário
-        const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSctDY4I0FIjE-O4-qm1tKMnyfftjBfmlXa0Sy-HbBiMrwJw3A/viewform';
-        
+        // ⚠️ ATENÇÃO: Substitua pela URL que você copiou ao implantar o script!
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwo5l6AYL_AW-RWF_YpjeD1TGZPtFI2cw6X4wGMcTGYQJv7Jd36w6a8dea2vgZ1SRye/exec';
         // ================================================================
 
         const form = document.getElementById('appForm');
@@ -661,26 +649,39 @@
         });
 
         // ================================================================
-        // ENVIO - Abre o formulário com os dados preenchidos
+        // ENVIO DIRETO PARA A PLANILHA (VIA POST)
         // ================================================================
         
-        function submitViaForm(data) {
-            return new Promise((resolve) => {
-                const params = new URLSearchParams();
-                for (const [key, value] of Object.entries(data)) {
-                    if (value && value.trim && value.trim() !== '') {
-                        params.append(key, value.trim());
-                    }
+        async function enviarParaPlanilha(dados) {
+            // Constrói os parâmetros
+            const params = new URLSearchParams();
+            for (const [key, value] of Object.entries(dados)) {
+                if (value && value.trim && value.trim() !== '') {
+                    params.append(key, value.trim());
                 }
-                
-                const url = FORM_URL + '?' + params.toString();
-                window.open(url, '_blank');
-                
-                resolve({ 
-                    success: true, 
-                    message: 'Formulário aberto! Basta clicar em "Enviar".' 
+            }
+
+            try {
+                const response = await fetch(WEB_APP_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: params.toString()
                 });
-            });
+
+                // Como usamos 'no-cors', não podemos ler a resposta.
+                // Vamos considerar sucesso se não houve erro de rede.
+                return { 
+                    success: true, 
+                    message: 'Dados enviados diretamente para a planilha!' 
+                };
+
+            } catch (error) {
+                console.error('Erro no envio:', error);
+                throw new Error('Falha ao enviar. Verifique sua conexão.');
+            }
         }
 
         // ================================================================
@@ -727,26 +728,28 @@
                 return;
             }
 
-            // Prepara os dados
-            const formData = {};
-            formData[FORM_IDS.data] = campoData.value;
-            formData[FORM_IDS.nome] = campoNome.value.trim();
-            formData[FORM_IDS.movimentacao] = campoMovimentacao.value;
-            formData[FORM_IDS.tipo] = campoTipo.value;
-            formData[FORM_IDS.valor] = campoValor.value;
+            // Prepara os dados - OS NOMES DEVEM COINCIDIR COM OS CABEÇALHOS DA PLANILHA
+            const dados = {
+                'Data': campoData.value,
+                'Nome': campoNome.value.trim(),
+                'Movimentacao': campoMovimentacao.value,
+                'Tipo': campoTipo.value,
+                'Valor': campoValor.value
+            };
 
             if (campoFoto.files.length > 0) {
-                formData[FORM_IDS.foto] = campoFoto.files[0].name;
+                dados['Foto'] = campoFoto.files[0].name;
             }
 
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = '<span class="spinner"></span> Enviando...';
-            showFeedback('Abrindo formulário...', 'loading');
+            showFeedback('Enviando dados para a planilha...', 'loading');
 
             try {
-                const result = await submitViaForm(formData);
-                showFeedback('✅ ' + result.message, 'success');
+                const resultado = await enviarParaPlanilha(dados);
+                showFeedback('✅ ' + resultado.message, 'success');
 
+                // Reseta o formulário
                 const dataAtual = campoData.value;
                 form.reset();
                 campoData.value = dataAtual;
@@ -766,8 +769,9 @@
 
         setMovimentacao('entrada');
 
-        console.log('✅ App pronto para uso!');
-        console.log('📋 Os dados serão abertos no Google Forms para envio.');
+        console.log('✅ App pronto para envio direto à planilha!');
+        console.log('📋 URL do Web App:', WEB_APP_URL);
+        console.log('⚠️ Substitua SEU_SCRIPT_AQUI pela URL que você copiou!');
 
     })();
 </script>
