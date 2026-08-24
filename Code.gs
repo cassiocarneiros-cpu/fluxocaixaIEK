@@ -185,8 +185,8 @@ function savePhoto_(photo, submissionId) {
   const bytes = Utilities.base64Decode(dataUrl.substring(comma + 1));
   const blob = Utilities.newBlob(bytes, mime, 'FOTO_' + submissionId + '.jpg');
 
-  if (blob.getBytes().length > 12 * 1024 * 1024) {
-    throw new Error('A FOTO OTIMIZADA ULTRAPASSOU O LIMITE DE 12 MB PARA O ENVIO.');
+  if (blob.getBytes().length > 6 * 1024 * 1024) {
+    throw new Error('A FOTO OTIMIZADA ULTRAPASSOU 6 MB.');
   }
 
   const folder = getPhotoFolder_();

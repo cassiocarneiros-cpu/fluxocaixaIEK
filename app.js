@@ -162,24 +162,36 @@
     return (bytes / Math.pow(1024, i)).toFixed(i ? 2 : 0) + " " + units[i];
   }
 
-  async function compressImage(file, maxDimension = 2560, quality = 0.82) {
-    if (file.size < 2 * 1024 * 1024 && /image\/(jpeg|png|webp)/i.test(file.type)) {
-      // Ainda assim, normaliza para JPEG para diminuir o payload e facilitar o Drive.
+  async function compressImage(file, maxDimension = 1920, quality = 0.78) {
+    const bitmap = await createImageBitmap(file);
+    let dimension = Math.min(maxDimension, Math.max(bitmap.width, bitmap.height));
+    let q = quality;
+    let blob = null;
+
+    // O CAMPO PODE ACEITAR ARQUIVOS DE ATÉ 1 GB, MAS O ARQUIVO
+    // ENVIADO AO APPS SCRIPT É COMPRIMIDO PARA ATÉ 5 MB.
+    for (let attempt = 0; attempt < 7; attempt++) {
+      const scale = Math.min(1, dimension / Math.max(bitmap.width, bitmap.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const ctx = canvas.getContext("2d", {alpha:false});
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+      blob = await new Promise((resolve, reject) => {
+        canvas.toBlob(
+          b => b ? resolve(b) : reject(new Error("NÃO FOI POSSÍVEL PROCESSAR A FOTO.")),
+          "image/jpeg",
+          q
+        );
+      });
+
+      if (blob.size <= 5 * 1024 * 1024) break;
+      dimension = Math.round(dimension * 0.78);
+      q = Math.max(0.55, q - 0.06);
     }
 
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    const ctx = canvas.getContext("2d", {alpha:false});
-    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
-
-    const blob = await new Promise((resolve, reject) => {
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error("NÃO FOI POSSÍVEL PROCESSAR A FOTO.")), "image/jpeg", quality);
-    });
-
     return blob;
   }
 
@@ -449,26 +461,27 @@
     status("", "ENVIANDO...", "REGISTRANDO RESPOSTAS E FOTO.");
 
     try {
-      const response = await fetch(cfg.APPS_SCRIPT_URL, {
+      // O GitHub Pages e o Apps Script estão em domínios diferentes.
+      // Em vez de tentar ler a resposta do POST (CORS), fazemos um POST
+      // simples em no-cors e depois consultamos o status via JSONP.
+      await fetch(cfg.APPS_SCRIPT_URL, {
         method: "POST",
+        mode: "no-cors",
         redirect: "follow",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(payload)
       });
 
-      const text = await response.text();
-      let result = {};
-      try { result = JSON.parse(text); } catch (_) {}
-
-      if (result.success === false) {
-        throw new Error(result.error || "O Apps Script recusou o envio.");
+      // O Apps Script pode levar alguns segundos para concluir o Drive.
+      let confirmed = false;
+      for (let attempt = 0; attempt < 12; attempt++) {
+        await new Promise(r => setTimeout(r, attempt === 0 ? 1200 : 900));
+        confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
+        if (confirmed) break;
       }
 
-      await new Promise(r => setTimeout(r, 500));
-      const confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
-
       if (!confirmed) {
-        throw new Error("O envio foi feito, mas o Apps Script não confirmou o registro na planilha.");
+        throw new Error("O envio não foi confirmado. Verifique a implantação do Apps Script e a planilha.");
       }
 
       form.classList.add("hidden");
@@ -479,7 +492,7 @@
       fail((err.message || "FALHA NO ENVIO.").toUpperCase(), "Detalhe do envio: " + (err.message || err));
     } finally {
       submitBtn.disabled = false;
-      submitBtn.querySelector("span").textContent = "Enviar formulário";
+      submitBtn.querySelector("span").textContent = "ENVIAR FORMULÁRIO";
     }
   }
 
