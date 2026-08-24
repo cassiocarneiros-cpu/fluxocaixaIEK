@@ -65,7 +65,135 @@
     return wrap;
   }
 
+
+  function isPhotoQuestion(q) {
+    return q.title && (
+      q.title.toLowerCase().includes("foto da entrada") ||
+      q.title.toLowerCase().includes("foto")
+    );
+  }
+
+  function buildPhotoQuestion(q) {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+
+    const label = document.createElement("label");
+    label.innerHTML = esc(q.title) + (q.required ? ' <span class="required">*</span>' : "");
+    wrap.appendChild(label);
+
+    const box = document.createElement("div");
+    box.className = "photo-box";
+
+    const input = document.createElement("input");
+    input.className = "photo-input";
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment";
+    input.name = "q_" + q.index;
+    input.dataset.title = q.title;
+    input.dataset.photo = "true";
+    input.dataset.required = q.required ? "true" : "false";
+
+    const labelBtn = document.createElement("label");
+    labelBtn.className = "photo-label";
+    labelBtn.setAttribute("for", input.name);
+    labelBtn.innerHTML = "📷 TIRAR OU ESCOLHER FOTO";
+
+    const info = document.createElement("div");
+    info.className = "photo-info";
+    info.textContent = "PERMITIDO: IMAGENS DE ATÉ 1 GB. A FOTO SERÁ OTIMIZADA AUTOMATICAMENTE PARA O ENVIO.";
+
+    const preview = document.createElement("div");
+    preview.className = "photo-preview";
+
+    const img = document.createElement("img");
+    img.alt = "PRÉVIA DA FOTO";
+    preview.appendChild(img);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "photo-remove";
+    remove.textContent = "REMOVER FOTO";
+
+    const progress = document.createElement("div");
+    progress.className = "upload-progress";
+    const bar = document.createElement("span");
+    progress.appendChild(bar);
+
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const max = 1024 * 1024 * 1024;
+      if (file.size > max) {
+        input.value = "";
+        alert("A FOTO NÃO PODE ULTRAPASSAR 1 GB.");
+        return;
+      }
+
+      if (!file.type.startsWith("image/")) {
+        input.value = "";
+        alert("SELECIONE UMA IMAGEM.");
+        return;
+      }
+
+      img.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+      remove.style.display = "inline-block";
+      info.textContent = "FOTO SELECIONADA: " + file.name + " — " + formatBytes(file.size);
+    });
+
+    remove.addEventListener("click", () => {
+      input.value = "";
+      preview.style.display = "none";
+      remove.style.display = "none";
+      info.textContent = "PERMITIDO: IMAGENS DE ATÉ 1 GB. A FOTO SERÁ OTIMIZADA AUTOMATICAMENTE PARA O ENVIO.";
+    });
+
+    box.append(input, labelBtn, info, preview, remove, progress);
+    wrap.appendChild(box);
+    return wrap;
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes) return "0 B";
+    const units = ["B","KB","MB","GB"];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+    return (bytes / Math.pow(1024, i)).toFixed(i ? 2 : 0) + " " + units[i];
+  }
+
+  async function compressImage(file, maxDimension = 2560, quality = 0.82) {
+    if (file.size < 2 * 1024 * 1024 && /image\/(jpeg|png|webp)/i.test(file.type)) {
+      // Ainda assim, normaliza para JPEG para diminuir o payload e facilitar o Drive.
+    }
+
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d", {alpha:false});
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error("NÃO FOI POSSÍVEL PROCESSAR A FOTO.")), "image/jpeg", quality);
+    });
+
+    return blob;
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("ERRO AO LER A FOTO."));
+      reader.readAsDataURL(blob);
+    });
+  }
+
   function buildQuestion(q) {
+    if (isPhotoQuestion(q)) return buildPhotoQuestion(q);
     const name = "q_" + q.index;
 
     if (q.type === "RADIO" || q.type === "CHECKBOX") {
@@ -242,9 +370,9 @@
 
   function collect() {
     const answers = {};
-
     form.querySelectorAll("input[data-title], select[data-title], textarea[data-title]").forEach(el => {
       const title = el.dataset.title;
+      if (el.dataset.photo === "true") return;
 
       if (el.type === "checkbox") {
         if (!answers[title]) answers[title] = [];
@@ -265,6 +393,11 @@
     return answers;
   }
 
+  function getPhotoInput() {
+    return form.querySelector('input[data-photo="true"]');
+  }
+
+
   async function submit(e) {
     e.preventDefault();
     clearError();
@@ -283,9 +416,37 @@
       answers: collect()
     };
 
+    const photoInput = getPhotoInput();
+    if (photoInput && photoInput.required && (!photoInput.files || !photoInput.files.length)) {
+      fail("A FOTO É OBRIGATÓRIA."); return;
+    }
+
+    if (photoInput && photoInput.files && photoInput.files.length) {
+      const original = photoInput.files[0];
+
+      status("", "PROCESSANDO FOTO...", "OTIMIZANDO A IMAGEM PARA O ENVIO.");
+      const optimized = await compressImage(original);
+      const dataUrl = await blobToDataUrl(optimized);
+
+      // Mantemos o limite real do Apps Script com folga. A entrada aceita até 1 GB,
+      // mas a foto é reduzida antes de viajar pela rede.
+      if (optimized.size > 12 * 1024 * 1024) {
+        fail("A FOTO, MESMO OTIMIZADA, FICOU MUITO GRANDE. TIRE UMA NOVA FOTO COM MENOR RESOLUÇÃO."); return;
+      }
+
+      payload.photo = {
+        title: original.name,
+        mimeType: "image/jpeg",
+        dataUrl,
+        originalSize: original.size,
+        optimizedSize: optimized.size
+      };
+      payload.photoQuestion = photoInput.dataset.title;
+    }
+
     submitBtn.disabled = true;
     submitBtn.querySelector("span").textContent = "Enviando...";
-    status("", "Enviando...", "Registrando as respostas na planilha.");
+    status("", "ENVIANDO...", "REGISTRANDO RESPOSTAS E FOTO.");
 
     try {
       const response = await fetch(cfg.APPS_SCRIPT_URL, {

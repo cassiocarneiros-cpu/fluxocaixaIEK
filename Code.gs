@@ -15,6 +15,7 @@ const CONFIG = {
   FORM_ID: '1tEQCJRVKn_QYwYEuBrbsai7ad3Kece6rv09yo_cM7TU',
   SPREADSHEET_ID: '11WjsgKn43-e1ed6zLDqJ9ie_rW1b_Ay-_zxCOph77TY',
   SHEET_GID: 1782149917,
+  PHOTO_FOLDER_NAME: 'FOTOS - FLUXO DE CAIXA IEK',
   STATUS_TTL_SECONDS: 21600
 };
 
@@ -84,6 +85,15 @@ function doPost(e) {
     const sheet = getTargetSheet_();
     const headers = getHeaders_(sheet);
 
+    // FOTO: O APLICATIVO ACEITA SELEÇÃO/CÂMERA DE ATÉ 1 GB.
+    // ANTES DO ENVIO, A IMAGEM É OTIMIZADA NO CELULAR PARA FICAR BEM MENOR.
+    // O APPS SCRIPT RECEBE A IMAGEM OTIMIZADA E SALVA NO GOOGLE DRIVE.
+    if (payload.photo && payload.photo.dataUrl) {
+      const photoUrl = savePhoto_(payload.photo, submissionId);
+      const photoQuestion = String(payload.photoQuestion || 'Foto da Entrada ou Saída');
+      answers[photoQuestion] = photoUrl;
+    }
+
     // Evita duplicação acidental do mesmo envio.
     const existing = CacheService.getScriptCache().get('status_' + submissionId);
     if (existing === 'OK') {
@@ -126,6 +136,40 @@ function doPost(e) {
       error: String(err && err.message || err)
     });
   }
+}
+
+
+function savePhoto_(photo, submissionId) {
+  const dataUrl = String(photo.dataUrl || '');
+  const comma = dataUrl.indexOf(',');
+  if (comma < 0) throw new Error('FOTO INVÁLIDA.');
+
+  const mime = String(photo.mimeType || 'image/jpeg');
+  const bytes = Utilities.base64Decode(dataUrl.substring(comma + 1));
+  const blob = Utilities.newBlob(bytes, mime, 'FOTO_' + submissionId + '.jpg');
+
+  if (blob.getBytes().length > 12 * 1024 * 1024) {
+    throw new Error('A FOTO OTIMIZADA ULTRAPASSOU O LIMITE DE 12 MB PARA O ENVIO.');
+  }
+
+  const folder = getPhotoFolder_();
+  const file = folder.createFile(blob);
+  file.setName('FLUXO_CAIXA_' + submissionId + '.jpg');
+
+  // TENTA DEIXAR A FOTO VISÍVEL POR LINK.
+  // SE A POLÍTICA DA CONTA BLOQUEAR, A FOTO CONTINUA NO DRIVE E O LINK
+  // GERADO ABAIXO PODERÁ EXIGIR LOGIN.
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (_) {}
+
+  return file.getUrl();
+}
+
+function getPhotoFolder_() {
+  const folders = DriveApp.getFoldersByName(CONFIG.PHOTO_FOLDER_NAME);
+  if (folders.hasNext()) return folders.next();
+  return DriveApp.createFolder(CONFIG.PHOTO_FOLDER_NAME);
 }
 
 function getFormQuestions_() {
