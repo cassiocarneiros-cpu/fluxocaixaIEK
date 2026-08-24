@@ -71,36 +71,28 @@ function doGet(e) {
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
-      throw new Error('POST sem conteúdo.');
+      throw new Error('POST SEM CONTEÚDO.');
     }
 
     const payload = JSON.parse(e.postData.contents);
     const submissionId = String(payload.submissionId || '').trim();
 
     if (!submissionId) {
-      throw new Error('submissionId não informado.');
+      throw new Error('SUBMISSIONID NÃO INFORMADO.');
+    }
+
+    const cache = CacheService.getScriptCache();
+    if (cache.get('status_' + submissionId) === 'OK') {
+      return json_({ success: true, duplicate: true, submissionId: submissionId });
     }
 
     const answers = payload.answers || {};
     const sheet = getTargetSheet_();
     const headers = getHeaders_(sheet);
 
-    // FOTO: O APLICATIVO ACEITA SELEÇÃO/CÂMERA DE ATÉ 1 GB.
-    // ANTES DO ENVIO, A IMAGEM É OTIMIZADA NO CELULAR PARA FICAR BEM MENOR.
-    // O APPS SCRIPT RECEBE A IMAGEM OTIMIZADA E SALVA NO GOOGLE DRIVE.
-    if (payload.photo && payload.photo.dataUrl) {
-      const photoUrl = savePhoto_(payload.photo, submissionId);
-      const photoQuestion = String(payload.photoQuestion || 'Foto da Entrada ou Saída');
-      answers[photoQuestion] = photoUrl;
-    }
-
-    // Evita duplicação acidental do mesmo envio.
-    const existing = CacheService.getScriptCache().get('status_' + submissionId);
-    if (existing === 'OK') {
-      return json_({ success: true, duplicate: true, submissionId });
-    }
-
-    const row = headers.map(header => {
+    // 1) PRIMEIRO GRAVA O LANÇAMENTO NA PLANILHA.
+    // UM ERRO NO UPLOAD DA FOTO NÃO PODE APAGAR/PERDER O LANÇAMENTO.
+    const row = headers.map(function(header) {
       const n = normalize_(header);
 
       if (
@@ -112,30 +104,75 @@ function doPost(e) {
         return new Date();
       }
 
-      return findAnswer_(answers, header);
+      return findAnswerUpper_(answers, header);
     });
 
     sheet.appendRow(row);
+    const savedRow = sheet.getLastRow();
 
-    CacheService.getScriptCache().put(
-      'status_' + submissionId,
-      'OK',
-      CONFIG.STATUS_TTL_SECONDS
-    );
+    // 2) DEPOIS TENTA SALVAR A FOTO.
+    // SE FALHAR, OS DADOS JÁ ESTÃO NA PLANILHA.
+    let photoUrl = '';
+    let photoError = '';
+
+    if (payload.photo && payload.photo.dataUrl) {
+      try {
+        photoUrl = savePhoto_(payload.photo, submissionId);
+
+        const photoQuestion = String(
+          payload.photoQuestion || 'Foto da Entrada ou Saída'
+        );
+
+        const photoCol = headers.findIndex(function(header) {
+          return normalize_(header) === normalize_(photoQuestion);
+        });
+
+        if (photoCol >= 0 && photoUrl) {
+          sheet.getRange(savedRow, photoCol + 1).setValue(photoUrl);
+        }
+      } catch (photoErr) {
+        photoError = String(photoErr && photoErr.message || photoErr);
+        console.error('ERRO AO SALVAR FOTO: ' + photoError);
+      }
+    }
+
+    cache.put('status_' + submissionId, 'OK', CONFIG.STATUS_TTL_SECONDS);
 
     return json_({
       success: true,
-      submissionId,
+      submissionId: submissionId,
       sheet: sheet.getName(),
-      row: sheet.getLastRow()
+      row: savedRow,
+      photoSaved: !!photoUrl,
+      photoError: photoError
     });
 
   } catch (err) {
+    console.error(err);
     return json_({
       success: false,
       error: String(err && err.message || err)
     });
   }
+}
+
+function findAnswerUpper_(answers, header) {
+  const value = findAnswer_(answers, header);
+
+  if (value === null || value === undefined) return '';
+
+  // LINKS DE FOTO NÃO SÃO ALTERADOS.
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(function(item) {
+      return String(item).toUpperCase();
+    }).join(', ');
+  }
+
+  return String(value).toUpperCase();
 }
 
 

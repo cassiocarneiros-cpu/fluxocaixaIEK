@@ -445,7 +445,7 @@
     }
 
     submitBtn.disabled = true;
-    submitBtn.querySelector("span").textContent = "Enviando...";
+    submitBtn.querySelector("span").textContent = "ENVIANDO...";
     status("", "ENVIANDO...", "REGISTRANDO RESPOSTAS E FOTO.");
 
     try {
@@ -473,10 +473,10 @@
 
       form.classList.add("hidden");
       successBox.classList.remove("hidden");
-      status("ok", "Enviado com sucesso", "Registro confirmado na planilha.");
+      status("ok", "ENVIADO COM SUCESSO", "REGISTRO CONFIRMADO NA PLANILHA.");
     } catch (err) {
       console.error(err);
-      fail(err.message || "Falha no envio.", "Detalhe do envio: " + (err.message || err));
+      fail((err.message || "FALHA NO ENVIO.").toUpperCase(), "Detalhe do envio: " + (err.message || err));
     } finally {
       submitBtn.disabled = false;
       submitBtn.querySelector("span").textContent = "Enviar formulário";
