@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Financeira - Igreja</title>
+    <style>
+        /* ESTILOS (mesmos de antes) */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+
+        :root {
+            --verde-principal: #1a7a3a;
+            --verde-claro: #2b8c4a;
+            --verde-fundo: #f0faf0;
+            --verde-borda: #d4e8d4;
+            --verde-destaque: #0d4f1f;
+            --branco: #ffffff;
+            --cinza-texto: #4f7a5a;
+            --sombra: 0 20px 60px rgba(0, 80, 0, 0.15);
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(145deg, #f0faf0 0%, #e6f5e6 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .app-card {
+            background: var(--branco);
+            width: 100%;
+            max-width: 650px;
+            padding: 40px 35px;
+            border-radius: 48px;
+            box-shadow: var(--sombra), 0 8px 24px rgba(0, 40, 0, 0.08);
+            border: 1px solid rgba(0, 120, 0, 0.10);
+            transition: transform 0.25s ease;
+        }
+
+        .app-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .logo-icon {
+            background: linear-gradient(135deg, var(--verde-principal), var(--verde-claro));
+            color: white;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            margin: 0 auto 14px;
+            box-shadow: 0 8px 20px rgba(26, 122, 58, 0.30);
+        }
+
+        h1 {
+            color: var(--verde-destaque);
+            font-weight: 700;
+            font-size: 28px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: var(--cinza-texto);
+            font-weight: 400;
+            font-size: 15px;
+            margin-top: 6px;
+            opacity: 0.8;
+        }
+
+        .divider {
+            width: 70px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--verde-principal), #5cb85c);
+            border-radius: 4px;
+            margin: 14px auto 0;
+        }
+
+        .form-group {
+            margin-bottom: 22px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: var(--verde-destaque);
+            font-size: 14px;
+            margin-bottom: 6px;
+            letter-spacing: 0.3px;
+        }
+
+        .label-required {
+            color: #d32f2f;
+            margin-left: 2px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 15px;
+            background: #f9fdf9;
+            border: 2px solid var(--verde-borda);
+            border-radius: 16px;
+            transition: all 0.25s ease;
+            color: #1e3a2a;
+            outline: none;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--verde-principal);
+            background: var(--branco);
+            box-shadow: 0 0 0 4px rgba(26, 122, 58, 0.15);
+        }
+
+        input::placeholder, textarea::placeholder {
+            color: #8faf8f;
+        }
+
+        .data-field {
+            background: #f4fbf4;
+            border-color: #b8d9b8;
+            color: var(--verde-destaque);
+            font-weight: 500;
+        }
+
+        .movimentacao-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 4px;
+        }
+
+        .movimentacao-btn {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid var(--verde-borda);
+            border-radius: 16px;
+            background: #f9fdf9;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.25s ease;
+            color: #4a7a5a;
+        }
+
+        .movimentacao-btn:hover {
+            border-color: #8fbf8f;
+            background: #f0f8f0;
+        }
+
+        .movimentacao-btn.active-entrada {
+            background: linear-gradient(135deg, #1a7a3a, #2b8c4a);
+            border-color: #1a7a3a;
+            color: white;
+            box-shadow: 0 4px 15px rgba(26, 122, 58, 0.25);
+        }
+
+        .movimentacao-btn.active-saida {
+            background: linear-gradient(135deg, #b33c3c, #d45a5a);
+            border-color: #b33c3c;
+            color: white;
+            box-shadow: 0 4px 15px rgba(179, 60, 60, 0.25);
+        }
+
+        .movimentacao-btn .icon-mov {
+            display: block;
+            font-size: 22px;
+            margin-bottom: 4px;
+        }
+
+        .tipo-wrapper {
+            position: relative;
+        }
+
+        .tipo-select {
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a7a3a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 18px center;
+            padding-right: 48px;
+        }
+
+        .tipo-detalhe {
+            display: block;
+            font-size: 12px;
+            color: var(--cinza-texto);
+            margin-top: 6px;
+            padding: 8px 14px;
+            background: #f4fbf4;
+            border-radius: 12px;
+            border-left: 3px solid var(--verde-principal);
+        }
+
+        .tipo-detalhe strong {
+            color: var(--verde-destaque);
+        }
+
+        .valor-input {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--verde-destaque);
+            letter-spacing: 0.5px;
+        }
+
+        .foto-upload {
+            border: 2px dashed var(--verde-borda);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            background: #f9fdf9;
+            transition: all 0.25s ease;
+            cursor: pointer;
+        }
+
+        .foto-upload:hover {
+            border-color: var(--verde-principal);
+            background: #f0faf0;
+        }
+
+        .foto-upload .icon-foto {
+            font-size: 40px;
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .foto-upload p {
+            color: var(--cinza-texto);
+            font-size: 14px;
+        }
+
+        .foto-upload .file-name {
+            color: var(--verde-principal);
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 13px;
+        }
+
+        .foto-preview {
+            margin-top: 12px;
+            max-width: 100%;
+            max-height: 180px;
+            border-radius: 12px;
+            border: 2px solid var(--verde-borda);
+            display: none;
+        }
+
+        .foto-preview.show {
+            display: block;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 8px 0 4px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 22px;
+            height: 22px;
+            accent-color: var(--verde-principal);
+            transform: scale(1.1);
+            flex-shrink: 0;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: 500;
+            color: #1e4a2a;
+            font-size: 15px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--verde-principal), var(--verde-claro));
+            color: white;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 6px 20px rgba(26, 122, 58, 0.30);
+            letter-spacing: 0.5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .btn-submit:hover {
+            background: linear-gradient(135deg, #0f682e, #1f7a3a);
+            transform: scale(1.01);
+            box-shadow: 0 10px 28px rgba(26, 122, 58, 0.40);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.97);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 14px 18px;
+            border-radius: 16px;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+            font-size: 15px;
+        }
+
+        .feedback.success {
+            display: block;
+            background: #e3f5e3;
+            color: #0f5720;
+            border: 1px solid #82c882;
+        }
+
+        .feedback.error {
+            display: block;
+            background: #fde8e8;
+            color: #a13232;
+            border: 1px solid #e6b3b3;
+        }
+
+        .feedback.loading {
+            display: block;
+            background: #edf7ed;
+            color: #1a6a3a;
+            border: 1px solid #9fd09f;
+        }
+
+        .footer-note {
+            margin-top: 28px;
+            text-align: center;
+            color: var(--cinza-texto);
+            font-size: 13px;
+            border-top: 1px solid #deecde;
+            padding-top: 20px;
+        }
+
+        .footer-note span {
+            color: var(--verde-principal);
+            font-weight: 600;
+        }
+
+        @media (max-width: 480px) {
+            .app-card {
+                padding: 24px 18px;
+                border-radius: 32px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .logo-icon {
+                width: 64px;
+                height: 64px;
+                font-size: 30px;
+            }
+            input, select, textarea {
+                padding: 12px 14px;
+                font-size: 14px;
+            }
+            .movimentacao-btn {
+                font-size: 14px;
+                padding: 12px;
+            }
+            .movimentacao-btn .icon-mov {
+                font-size: 18px;
+            }
+            .foto-upload {
+                padding: 16px;
+            }
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-card">
+    <div class="header">
+        <div class="logo-icon">⛪</div>
+        <h1>Gestão Financeira</h1>
+        <p class="subtitle">Registro de movimentações</p>
+        <div class="divider"></div>
+    </div>
+
+    <form id="appForm">
+        <div class="form-group">
+            <label for="data">📅 Data <span class="label-required">*</span></label>
+            <input type="date" id="data" class="data-field" required>
+        </div>
+
+        <div class="form-group">
+            <label for="nome">👤 Nome <span class="label-required">*</span></label>
+            <input type="text" id="nome" placeholder="Quem está registrando?" required>
+        </div>
+
+        <div class="form-group">
+            <label>🔄 Movimentação <span class="label-required">*</span></label>
+            <div class="movimentacao-group" id="movimentacaoGroup">
+                <button type="button" class="movimentacao-btn" data-value="entrada" id="btnEntrada">
+                    <span class="icon-mov">📈</span>
+                    ENTRADA
+                </button>
+                <button type="button" class="movimentacao-btn" data-value="saida" id="btnSaida">
+                    <span class="icon-mov">📉</span>
+                    SAÍDA
+                </button>
+            </div>
+            <input type="hidden" id="movimentacao" value="entrada" required>
+        </div>
+
+        <div class="form-group">
+            <label for="tipo">🏷️ Tipo <span class="label-required">*</span></label>
+            <div class="tipo-wrapper">
+                <select id="tipo" class="tipo-select" required>
+                    <optgroup label="📥 ENTRADA">
+                        <option value="Dizimo">Dízimo</option>
+                        <option value="Oferta">Oferta</option>
+                        <option value="Dizimo_Especial">Dízimo Especial</option>
+                        <option value="Oferta_Especial">Oferta Especial</option>
+                        <option value="Cantina">Cantina</option>
+                    </optgroup>
+                    <optgroup label="📤 SAÍDA">
+                        <option value="Aluguel">Aluguel</option>
+                        <option value="Embasa">Embasa (Água)</option>
+                        <option value="Coelba">Coelba (Energia)</option>
+                        <option value="Manutencao">Manutenção</option>
+                        <option value="Material">Material de Limpeza</option>
+                        <option value="Outros">Outros</option>
+                    </optgroup>
+                </select>
+            </div>
+            <span class="tipo-detalhe" id="tipoDetalhe">
+                💡 <strong>Entrada</strong>: Dízimo, Oferta, Dízimo Especial, Oferta Especial, Cantina
+            </span>
+        </div>
+
+        <div class="form-group">
+            <label for="valor">💰 Valor (R$) <span class="label-required">*</span></label>
+            <input type="text" id="valor" class="valor-input" placeholder="0,00" required>
+        </div>
+
+        <div class="form-group">
+            <label for="foto">📷 Foto / Comprovante</label>
+            <div class="foto-upload" id="fotoUpload">
+                <span class="icon-foto">🖼️</span>
+                <p>Clique para fazer upload ou arraste a imagem</p>
+                <input type="file" id="foto" accept="image/*" style="display: none;">
+                <div class="file-name" id="fileName"></div>
+                <img id="fotoPreview" class="foto-preview" alt="Pré-visualização da foto">
+            </div>
+        </div>
+
+        <div class="form-group checkbox-group">
+            <input type="checkbox" id="concordo" required>
+            <label for="concordo">Confirmo que as informações estão corretas <span class="label-required">*</span></label>
+        </div>
+
+        <button type="submit" class="btn-submit" id="btnSubmit">
+            <span>📨</span> Registrar Movimentação
+        </button>
+    </form>
+
+    <div id="feedback" class="feedback"></div>
+
+    <div class="footer-note">
+        <span>✓</span> Dados enviados com segurança para a planilha Google via Web App
+    </div>
+</div>
+
+<script>
+    (function() {
+        'use strict';
+
+        // ELEMENTOS DO FORMULÁRIO
+        const form = document.getElementById('appForm');
+        const feedback = document.getElementById('feedback');
+        const btnSubmit = document.getElementById('btnSubmit');
+
+        const campoData = document.getElementById('data');
+        const campoNome = document.getElementById('nome');
+        const campoMovimentacao = document.getElementById('movimentacao');
+        const btnEntrada = document.getElementById('btnEntrada');
+        const btnSaida = document.getElementById('btnSaida');
+        const campoTipo = document.getElementById('tipo');
+        const tipoDetalhe = document.getElementById('tipoDetalhe');
+        const campoValor = document.getElementById('valor');
+        const campoFoto = document.getElementById('foto');
+        const fotoUpload = document.getElementById('fotoUpload');
+        const fileName = document.getElementById('fileName');
+        const fotoPreview = document.getElementById('fotoPreview');
+        const concordo = document.getElementById('concordo');
+
+        // ════════════════════════════════════════════════════════════════
+        // CONFIGURAÇÃO - URL DO WEB APP (ATUALIZE AQUI SE MUDAR)
+        // ════════════════════════════════════════════════════════════════
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzMEPkCtsBs5URR-Xd3Se1BHCld2s-pzxap3grOKd124hA7YV8qVb1zmcC7GO--JFI-/exec';
+
+        // ════════════════════════════════════════════════════════════════
+
+        // FUNÇÕES DE FEEDBACK
+        function showFeedback(message, type = 'success') {
+            feedback.textContent = message;
+            feedback.className = 'feedback ' + type;
+            feedback.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function clearFeedback() {
+            feedback.className = 'feedback';
+            feedback.textContent = '';
+        }
+
+        // DATA AUTOMÁTICA
+        function setDataAtual() {
+            const hoje = new Date();
+            const ano = hoje.getFullYear();
+            const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            const dia = String(hoje.getDate()).padStart(2, '0');
+            campoData.value = `${ano}-${mes}-${dia}`;
+        }
+        setDataAtual();
+
+        // MOVIMENTAÇÃO (toggle)
+        function setMovimentacao(valor) {
+            campoMovimentacao.value = valor;
+            btnEntrada.classList.remove('active-entrada');
+            btnSaida.classList.remove('active-saida');
+
+            if (valor === 'entrada') {
+                btnEntrada.classList.add('active-entrada');
+                atualizarTipos('entrada');
+                tipoDetalhe.innerHTML = '💡 <strong>Entrada</strong>: Dízimo, Oferta, Dízimo Especial, Oferta Especial, Cantina';
+            } else {
+                btnSaida.classList.add('active-saida');
+                atualizarTipos('saida');
+                tipoDetalhe.innerHTML = '💡 <strong>Saída</strong>: Aluguel, Embasa, Coelba, Manutenção, Material, Outros';
+            }
+        }
+
+        function atualizarTipos(movimentacao) {
+            const opcoesEntrada = ['Dizimo', 'Oferta', 'Dizimo_Especial', 'Oferta_Especial', 'Cantina'];
+            const opcoesSaida = ['Aluguel', 'Embasa', 'Coelba', 'Manutencao', 'Material', 'Outros'];
+
+            const valorAtual = campoTipo.value;
+            campoTipo.innerHTML = '';
+
+            const groupEntrada = document.createElement('optgroup');
+            groupEntrada.label = '📥 ENTRADA';
+            opcoesEntrada.forEach(op => {
+                const option = document.createElement('option');
+                option.value = op;
+                option.textContent = op.replace('_', ' ');
+                groupEntrada.appendChild(option);
+            });
+
+            const groupSaida = document.createElement('optgroup');
+            groupSaida.label = '📤 SAÍDA';
+            opcoesSaida.forEach(op => {
+                const option = document.createElement('option');
+                option.value = op;
+                option.textContent = op;
+                groupSaida.appendChild(option);
+            });
+
+            campoTipo.appendChild(groupEntrada);
+            campoTipo.appendChild(groupSaida);
+
+            if (valorAtual) {
+                const opcoes = [...opcoesEntrada, ...opcoesSaida];
+                if (opcoes.includes(valorAtual)) {
+                    campoTipo.value = valorAtual;
+                } else {
+                    campoTipo.value = movimentacao === 'entrada' ? 'Dizimo' : 'Aluguel';
+                }
+            } else {
+                campoTipo.value = movimentacao === 'entrada' ? 'Dizimo' : 'Aluguel';
+            }
+        }
+
+        btnEntrada.addEventListener('click', function() {
+            setMovimentacao('entrada');
+        });
+        btnSaida.addEventListener('click', function() {
+            setMovimentacao('saida');
+        });
+
+        // MÁSCARA DE VALOR
+        function formatarValor(valor) {
+            let apenasNumeros = valor.replace(/\D/g, '');
+            if (apenasNumeros === '') return '';
+            let numero = parseInt(apenasNumeros) / 100;
+            return numero.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        campoValor.addEventListener('input', function(e) {
+            let cursorPos = this.selectionStart;
+            let valorAnterior = this.value;
+            let numeros = this.value.replace(/\D/g, '');
+            if (numeros === '') {
+                this.value = '';
+                return;
+            }
+            let valorFormatado = formatarValor(numeros);
+            this.value = valorFormatado;
+            let novaPos = cursorPos;
+            if (valorAnterior.length !== this.value.length) {
+                novaPos = this.value.length;
+            }
+            this.setSelectionRange(novaPos, novaPos);
+        });
+
+        // UPLOAD DE FOTO
+        fotoUpload.addEventListener('click', function(e) {
+            if (e.target.tagName !== 'INPUT') {
+                campoFoto.click();
+            }
+        });
+
+        campoFoto.addEventListener('change', function(e) {
+            const file = this.files[0];
+            if (file) {
+                fileName.textContent = `📎 ${file.name}`;
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    fotoPreview.src = event.target.result;
+                    fotoPreview.classList.add('show');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                fileName.textContent = '';
+                fotoPreview.classList.remove('show');
+            }
+        });
+
+        // ════════════════════════════════════════════════════════════════
+        // ENVIO PARA O WEB APP - MÉTODO MAIS CONFIÁVEL
+        // ════════════════════════════════════════════════════════════════
+        
+        function submitToWebApp(data) {
+            return new Promise((resolve, reject) => {
+                // Constrói a URL com os parâmetros
+                const params = new URLSearchParams();
+                for (const [key, value] of Object.entries(data)) {
+                    if (value && value.trim && value.trim() !== '') {
+                        params.append(key, value.trim());
+                    }
+                }
+                const url = WEB_APP_URL + '?' + params.toString();
+
+                // Usa o método GET em vez de POST para evitar CORS
+                fetch(url, {
+                    method: 'GET',
+                    mode: 'no-cors'
+                })
+                .then(() => {
+                    // Como usamos 'no-cors', não podemos ler a resposta.
+                    // Vamos considerar sucesso se não houver erro de rede.
+                    resolve({ 
+                        success: true, 
+                        message: 'Dados enviados com sucesso para a planilha!' 
+                    });
+                })
+                .catch((error) => {
+                    console.error('Erro no envio:', error);
+                    reject(new Error('Falha ao enviar os dados. Verifique sua conexão.'));
+                });
+            });
+        }
+
+        // ════════════════════════════════════════════════════════════════
+
+        // SUBMIT
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            clearFeedback();
+
+            // Validações
+            if (!campoData.value) {
+                showFeedback('Por favor, selecione uma data.', 'error');
+                campoData.focus();
+                return;
+            }
+
+            if (!campoNome.value.trim()) {
+                showFeedback('Por favor, preencha o nome.', 'error');
+                campoNome.focus();
+                return;
+            }
+
+            if (!campoMovimentacao.value) {
+                showFeedback('Por favor, selecione ENTRADA ou SAÍDA.', 'error');
+                return;
+            }
+
+            if (!campoTipo.value) {
+                showFeedback('Por favor, selecione um tipo.', 'error');
+                campoTipo.focus();
+                return;
+            }
+
+            const valorLimpo = campoValor.value.replace(/\./g, '').replace(',', '.');
+            if (!campoValor.value || parseFloat(valorLimpo) <= 0) {
+                showFeedback('Por favor, insira um valor válido (maior que zero).', 'error');
+                campoValor.focus();
+                return;
+            }
+
+            if (!concordo.checked) {
+                showFeedback('Por favor, confirme que as informações estão corretas.', 'error');
+                concordo.focus();
+                return;
+            }
+
+            // Prepara os dados
+            const formData = {};
+            formData['Data'] = campoData.value;
+            formData['Nome'] = campoNome.value.trim();
+            formData['Movimentacao'] = campoMovimentacao.value;
+            formData['Tipo'] = campoTipo.value;
+            formData['Valor'] = campoValor.value;
+
+            if (campoFoto.files.length > 0) {
+                formData['Foto'] = campoFoto.files[0].name;
+            }
+
+            // Envia
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = '<span class="spinner"></span> Enviando...';
+            showFeedback('Enviando dados para a planilha...', 'loading');
+
+            try {
+                const result = await submitToWebApp(formData);
+                showFeedback('✅ ' + result.message, 'success');
+
+                // Reseta o formulário
+                const dataAtual = campoData.value;
+                form.reset();
+                campoData.value = dataAtual;
+                setMovimentacao('entrada');
+                campoValor.value = '';
+                fileName.textContent = '';
+                fotoPreview.classList.remove('show');
+                concordo.checked = false;
+
+            } catch (error) {
+                console.error('Erro:', error);
+                showFeedback('❌ ' + error.message, 'error');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = '<span>📨</span> Registrar Movimentação';
+            }
+        });
+
+        // INICIALIZAÇÃO
+        setMovimentacao('entrada');
+
+        console.log('✅ APP CONFIGURADO!');
+        console.log('📋 URL do Web App:', WEB_APP_URL);
+        console.log('💡 Teste manual no navegador:');
+        console.log(WEB_APP_URL + '?Data=2026-08-24&Nome=Teste&Tipo=Dizimo&Valor=100');
+
+    })();
+</script>
+
+</body>
+</html>
