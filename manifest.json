@@ -1,0 +1,14 @@
+{
+  "name": "Igreja Evangélica Kerigma — Formulário Digital",
+  "short_name": "Kerigma",
+  "description": "Formulário digital da Igreja Evangélica Kerigma.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0E2122",
+  "theme_color": "#0E2122",
+  "orientation": "portrait",
+  "icons": [
+    {"src":"igreja_kerigma_v3.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"igreja_kerigma_v3.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
