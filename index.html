@@ -2,15 +2,15 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão Financeira - Igreja</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>Gestão Financeira - IEK</title>
     <style>
-        /* ESTILOS (mesmos de antes) */
+        /* ===== RESET E VARIÁVEIS ===== */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            font-family: -apple-system, 'Segoe UI', Roboto, system-ui, sans-serif;
         }
 
         :root {
@@ -21,86 +21,80 @@
             --verde-destaque: #0d4f1f;
             --branco: #ffffff;
             --cinza-texto: #4f7a5a;
-            --sombra: 0 20px 60px rgba(0, 80, 0, 0.15);
+            --sombra: 0 8px 30px rgba(0, 80, 0, 0.12);
         }
 
         body {
             min-height: 100vh;
-            background: linear-gradient(145deg, #f0faf0 0%, #e6f5e6 100%);
+            background: linear-gradient(145deg, #f0faf0 0%, #dcecdc 100%);
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 16px;
+            margin: 0;
         }
 
         .app-card {
             background: var(--branco);
             width: 100%;
-            max-width: 650px;
-            padding: 40px 35px;
-            border-radius: 48px;
-            box-shadow: var(--sombra), 0 8px 24px rgba(0, 40, 0, 0.08);
-            border: 1px solid rgba(0, 120, 0, 0.10);
-            transition: transform 0.25s ease;
-        }
-
-        .app-card:hover {
-            transform: translateY(-4px);
+            max-width: 500px;
+            padding: 30px 24px;
+            border-radius: 32px;
+            box-shadow: var(--sombra);
+            border: 1px solid rgba(0, 100, 0, 0.08);
         }
 
         .header {
             text-align: center;
-            margin-bottom: 32px;
+            margin-bottom: 28px;
         }
 
         .logo-icon {
             background: linear-gradient(135deg, var(--verde-principal), var(--verde-claro));
             color: white;
-            width: 80px;
-            height: 80px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 40px;
-            margin: 0 auto 14px;
-            box-shadow: 0 8px 20px rgba(26, 122, 58, 0.30);
+            font-size: 34px;
+            margin: 0 auto 12px;
+            box-shadow: 0 6px 16px rgba(26, 122, 58, 0.25);
         }
 
         h1 {
             color: var(--verde-destaque);
             font-weight: 700;
-            font-size: 28px;
-            letter-spacing: -0.5px;
+            font-size: 24px;
+            letter-spacing: -0.3px;
         }
 
         .subtitle {
             color: var(--cinza-texto);
-            font-weight: 400;
-            font-size: 15px;
-            margin-top: 6px;
-            opacity: 0.8;
+            font-size: 14px;
+            margin-top: 4px;
         }
 
         .divider {
-            width: 70px;
-            height: 4px;
+            width: 50px;
+            height: 3px;
             background: linear-gradient(90deg, var(--verde-principal), #5cb85c);
             border-radius: 4px;
-            margin: 14px auto 0;
+            margin: 10px auto 0;
         }
 
         .form-group {
-            margin-bottom: 22px;
+            margin-bottom: 18px;
         }
 
         label {
             display: block;
             font-weight: 600;
             color: var(--verde-destaque);
-            font-size: 14px;
-            margin-bottom: 6px;
-            letter-spacing: 0.3px;
+            font-size: 13px;
+            margin-bottom: 5px;
+            letter-spacing: 0.2px;
         }
 
         .label-required {
@@ -108,100 +102,94 @@
             margin-left: 2px;
         }
 
-        input, select, textarea {
+        input, select {
             width: 100%;
-            padding: 14px 18px;
+            padding: 12px 16px;
             font-size: 15px;
             background: #f9fdf9;
             border: 2px solid var(--verde-borda);
-            border-radius: 16px;
+            border-radius: 14px;
             transition: all 0.25s ease;
             color: #1e3a2a;
             outline: none;
+            -webkit-appearance: none;
+            appearance: none;
         }
 
-        input:focus, select:focus, textarea:focus {
+        input:focus, select:focus {
             border-color: var(--verde-principal);
             background: var(--branco);
-            box-shadow: 0 0 0 4px rgba(26, 122, 58, 0.15);
+            box-shadow: 0 0 0 3px rgba(26, 122, 58, 0.12);
         }
 
-        input::placeholder, textarea::placeholder {
+        input::placeholder {
             color: #8faf8f;
         }
 
         .data-field {
             background: #f4fbf4;
             border-color: #b8d9b8;
-            color: var(--verde-destaque);
-            font-weight: 500;
         }
 
         .movimentacao-group {
             display: flex;
-            gap: 12px;
-            margin-top: 4px;
+            gap: 10px;
         }
 
         .movimentacao-btn {
             flex: 1;
-            padding: 14px;
+            padding: 12px;
             border: 2px solid var(--verde-borda);
-            border-radius: 16px;
+            border-radius: 14px;
             background: #f9fdf9;
             cursor: pointer;
             text-align: center;
             font-weight: 600;
-            font-size: 16px;
+            font-size: 15px;
             transition: all 0.25s ease;
             color: #4a7a5a;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .movimentacao-btn:hover {
-            border-color: #8fbf8f;
-            background: #f0f8f0;
+        .movimentacao-btn:active {
+            transform: scale(0.97);
         }
 
         .movimentacao-btn.active-entrada {
             background: linear-gradient(135deg, #1a7a3a, #2b8c4a);
             border-color: #1a7a3a;
             color: white;
-            box-shadow: 0 4px 15px rgba(26, 122, 58, 0.25);
+            box-shadow: 0 4px 12px rgba(26, 122, 58, 0.2);
         }
 
         .movimentacao-btn.active-saida {
             background: linear-gradient(135deg, #b33c3c, #d45a5a);
             border-color: #b33c3c;
             color: white;
-            box-shadow: 0 4px 15px rgba(179, 60, 60, 0.25);
+            box-shadow: 0 4px 12px rgba(179, 60, 60, 0.2);
         }
 
         .movimentacao-btn .icon-mov {
             display: block;
-            font-size: 22px;
-            margin-bottom: 4px;
-        }
-
-        .tipo-wrapper {
-            position: relative;
+            font-size: 20px;
+            margin-bottom: 2px;
         }
 
         .tipo-select {
-            appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%231a7a3a' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 18px center;
-            padding-right: 48px;
+            background-position: right 16px center;
+            padding-right: 40px;
         }
 
         .tipo-detalhe {
             display: block;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--cinza-texto);
-            margin-top: 6px;
-            padding: 8px 14px;
+            margin-top: 5px;
+            padding: 6px 12px;
             background: #f4fbf4;
-            border-radius: 12px;
+            border-radius: 10px;
             border-left: 3px solid var(--verde-principal);
         }
 
@@ -213,47 +201,45 @@
             font-size: 20px;
             font-weight: 600;
             color: var(--verde-destaque);
-            letter-spacing: 0.5px;
         }
 
         .foto-upload {
             border: 2px dashed var(--verde-borda);
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: 14px;
+            padding: 18px;
             text-align: center;
             background: #f9fdf9;
             transition: all 0.25s ease;
             cursor: pointer;
         }
 
-        .foto-upload:hover {
-            border-color: var(--verde-principal);
-            background: #f0faf0;
+        .foto-upload:active {
+            transform: scale(0.98);
         }
 
         .foto-upload .icon-foto {
-            font-size: 40px;
+            font-size: 32px;
             display: block;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .foto-upload p {
             color: var(--cinza-texto);
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .foto-upload .file-name {
             color: var(--verde-principal);
             font-weight: 600;
-            margin-top: 8px;
-            font-size: 13px;
+            margin-top: 6px;
+            font-size: 12px;
         }
 
         .foto-preview {
-            margin-top: 12px;
+            margin-top: 10px;
             max-width: 100%;
-            max-height: 180px;
-            border-radius: 12px;
+            max-height: 140px;
+            border-radius: 10px;
             border: 2px solid var(--verde-borda);
             display: none;
         }
@@ -265,49 +251,44 @@
         .checkbox-group {
             display: flex;
             align-items: center;
-            gap: 12px;
-            margin: 8px 0 4px;
+            gap: 10px;
+            margin: 6px 0 2px;
         }
 
         .checkbox-group input[type="checkbox"] {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
             accent-color: var(--verde-principal);
-            transform: scale(1.1);
             flex-shrink: 0;
+            -webkit-appearance: checkbox;
+            appearance: checkbox;
         }
 
         .checkbox-group label {
             margin-bottom: 0;
             font-weight: 500;
-            color: #1e4a2a;
-            font-size: 15px;
+            font-size: 14px;
         }
 
         .btn-submit {
             width: 100%;
-            padding: 18px;
+            padding: 16px;
             background: linear-gradient(135deg, var(--verde-principal), var(--verde-claro));
             color: white;
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 700;
             border: none;
             border-radius: 40px;
             cursor: pointer;
             transition: all 0.25s ease;
-            box-shadow: 0 6px 20px rgba(26, 122, 58, 0.30);
-            letter-spacing: 0.5px;
+            box-shadow: 0 6px 20px rgba(26, 122, 58, 0.25);
+            letter-spacing: 0.3px;
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .btn-submit:hover {
-            background: linear-gradient(135deg, #0f682e, #1f7a3a);
-            transform: scale(1.01);
-            box-shadow: 0 10px 28px rgba(26, 122, 58, 0.40);
+            gap: 8px;
+            margin-top: 6px;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .btn-submit:active {
@@ -321,13 +302,13 @@
         }
 
         .feedback {
-            margin-top: 20px;
-            padding: 14px 18px;
-            border-radius: 16px;
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 14px;
             font-weight: 500;
             text-align: center;
             display: none;
-            font-size: 15px;
+            font-size: 14px;
         }
 
         .feedback.success {
@@ -352,12 +333,12 @@
         }
 
         .footer-note {
-            margin-top: 28px;
+            margin-top: 20px;
             text-align: center;
             color: var(--cinza-texto);
-            font-size: 13px;
+            font-size: 12px;
             border-top: 1px solid #deecde;
-            padding-top: 20px;
+            padding-top: 16px;
         }
 
         .footer-note span {
@@ -365,39 +346,10 @@
             font-weight: 600;
         }
 
-        @media (max-width: 480px) {
-            .app-card {
-                padding: 24px 18px;
-                border-radius: 32px;
-            }
-            h1 {
-                font-size: 24px;
-            }
-            .logo-icon {
-                width: 64px;
-                height: 64px;
-                font-size: 30px;
-            }
-            input, select, textarea {
-                padding: 12px 14px;
-                font-size: 14px;
-            }
-            .movimentacao-btn {
-                font-size: 14px;
-                padding: 12px;
-            }
-            .movimentacao-btn .icon-mov {
-                font-size: 18px;
-            }
-            .foto-upload {
-                padding: 16px;
-            }
-        }
-
         .spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
+            width: 18px;
+            height: 18px;
             border: 3px solid rgba(255,255,255,0.3);
             border-radius: 50%;
             border-top-color: #fff;
@@ -407,6 +359,40 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        @media (max-width: 420px) {
+            .app-card {
+                padding: 20px 16px;
+                border-radius: 24px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+            .logo-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+            }
+            input, select {
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+            .movimentacao-btn {
+                font-size: 13px;
+                padding: 10px;
+            }
+            .btn-submit {
+                font-size: 15px;
+                padding: 14px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .app-card {
+                padding: 40px 35px;
+                max-width: 550px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -415,7 +401,7 @@
     <div class="header">
         <div class="logo-icon">⛪</div>
         <h1>Gestão Financeira</h1>
-        <p class="subtitle">Registro de movimentações</p>
+        <p class="subtitle">IEK - Registro de movimentações</p>
         <div class="divider"></div>
     </div>
 
@@ -427,13 +413,13 @@
 
         <div class="form-group">
             <label for="nome">👤 Nome <span class="label-required">*</span></label>
-            <input type="text" id="nome" placeholder="Quem está registrando?" required>
+            <input type="text" id="nome" placeholder="Seu nome" required>
         </div>
 
         <div class="form-group">
             <label>🔄 Movimentação <span class="label-required">*</span></label>
             <div class="movimentacao-group" id="movimentacaoGroup">
-                <button type="button" class="movimentacao-btn" data-value="entrada" id="btnEntrada">
+                <button type="button" class="movimentacao-btn active-entrada" data-value="entrada" id="btnEntrada">
                     <span class="icon-mov">📈</span>
                     ENTRADA
                 </button>
@@ -452,8 +438,8 @@
                     <optgroup label="📥 ENTRADA">
                         <option value="Dizimo">Dízimo</option>
                         <option value="Oferta">Oferta</option>
-                        <option value="Dizimo_Especial">Dízimo Especial</option>
-                        <option value="Oferta_Especial">Oferta Especial</option>
+                        <option value="Dizimo Especial">Dízimo Especial</option>
+                        <option value="Oferta Especial">Oferta Especial</option>
                         <option value="Cantina">Cantina</option>
                     </optgroup>
                     <optgroup label="📤 SAÍDA">
@@ -480,10 +466,10 @@
             <label for="foto">📷 Foto / Comprovante</label>
             <div class="foto-upload" id="fotoUpload">
                 <span class="icon-foto">🖼️</span>
-                <p>Clique para fazer upload ou arraste a imagem</p>
+                <p>Clique para adicionar foto</p>
                 <input type="file" id="foto" accept="image/*" style="display: none;">
                 <div class="file-name" id="fileName"></div>
-                <img id="fotoPreview" class="foto-preview" alt="Pré-visualização da foto">
+                <img id="fotoPreview" class="foto-preview" alt="Pré-visualização">
             </div>
         </div>
 
@@ -493,14 +479,14 @@
         </div>
 
         <button type="submit" class="btn-submit" id="btnSubmit">
-            <span>📨</span> Registrar Movimentação
+            <span>📨</span> Registrar
         </button>
     </form>
 
     <div id="feedback" class="feedback"></div>
 
     <div class="footer-note">
-        <span>✓</span> Dados enviados com segurança para a planilha Google via Web App
+        <span>✓</span> Dados enviados para a planilha Google
     </div>
 </div>
 
@@ -508,7 +494,25 @@
     (function() {
         'use strict';
 
-        // ELEMENTOS DO FORMULÁRIO
+        // ================================================================
+        // 1. CONFIGURAÇÃO - PREENCHA COM SEUS DADOS
+        // ================================================================
+        
+        // IDs do seu formulário (já configurados)
+        const FORM_IDS = {
+            data: 'entry.1193135199',
+            nome: 'entry.401485485',
+            movimentacao: 'entry.966204836',
+            tipo: 'entry.1354237173',
+            valor: 'entry.1472286949',
+            foto: 'entry.1927179603'
+        };
+        
+        // URL do seu formulário
+        const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSctDY4I0FIjE-O4-qm1tKMnyfftjBfmlXa0Sy-HbBiMrwJw3A/viewform';
+        
+        // ================================================================
+
         const form = document.getElementById('appForm');
         const feedback = document.getElementById('feedback');
         const btnSubmit = document.getElementById('btnSubmit');
@@ -527,14 +531,6 @@
         const fotoPreview = document.getElementById('fotoPreview');
         const concordo = document.getElementById('concordo');
 
-        // ════════════════════════════════════════════════════════════════
-        // CONFIGURAÇÃO - URL DO WEB APP (ATUALIZE AQUI SE MUDAR)
-        // ════════════════════════════════════════════════════════════════
-        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzMEPkCtsBs5URR-Xd3Se1BHCld2s-pzxap3grOKd124hA7YV8qVb1zmcC7GO--JFI-/exec';
-
-        // ════════════════════════════════════════════════════════════════
-
-        // FUNÇÕES DE FEEDBACK
         function showFeedback(message, type = 'success') {
             feedback.textContent = message;
             feedback.className = 'feedback ' + type;
@@ -556,7 +552,7 @@
         }
         setDataAtual();
 
-        // MOVIMENTAÇÃO (toggle)
+        // MOVIMENTAÇÃO
         function setMovimentacao(valor) {
             campoMovimentacao.value = valor;
             btnEntrada.classList.remove('active-entrada');
@@ -574,7 +570,7 @@
         }
 
         function atualizarTipos(movimentacao) {
-            const opcoesEntrada = ['Dizimo', 'Oferta', 'Dizimo_Especial', 'Oferta_Especial', 'Cantina'];
+            const opcoesEntrada = ['Dizimo', 'Oferta', 'Dizimo Especial', 'Oferta Especial', 'Cantina'];
             const opcoesSaida = ['Aluguel', 'Embasa', 'Coelba', 'Manutencao', 'Material', 'Outros'];
 
             const valorAtual = campoTipo.value;
@@ -585,7 +581,7 @@
             opcoesEntrada.forEach(op => {
                 const option = document.createElement('option');
                 option.value = op;
-                option.textContent = op.replace('_', ' ');
+                option.textContent = op;
                 groupEntrada.appendChild(option);
             });
 
@@ -601,13 +597,9 @@
             campoTipo.appendChild(groupEntrada);
             campoTipo.appendChild(groupSaida);
 
-            if (valorAtual) {
-                const opcoes = [...opcoesEntrada, ...opcoesSaida];
-                if (opcoes.includes(valorAtual)) {
-                    campoTipo.value = valorAtual;
-                } else {
-                    campoTipo.value = movimentacao === 'entrada' ? 'Dizimo' : 'Aluguel';
-                }
+            const todasOpcoes = [...opcoesEntrada, ...opcoesSaida];
+            if (valorAtual && todasOpcoes.includes(valorAtual)) {
+                campoTipo.value = valorAtual;
             } else {
                 campoTipo.value = movimentacao === 'entrada' ? 'Dizimo' : 'Aluguel';
             }
@@ -645,7 +637,7 @@
             this.setSelectionRange(novaPos, novaPos);
         });
 
-        // UPLOAD DE FOTO
+        // FOTO
         fotoUpload.addEventListener('click', function(e) {
             if (e.target.tagName !== 'INPUT') {
                 campoFoto.click();
@@ -668,107 +660,93 @@
             }
         });
 
-        // ════════════════════════════════════════════════════════════════
-        // ENVIO PARA O WEB APP - MÉTODO MAIS CONFIÁVEL
-        // ════════════════════════════════════════════════════════════════
+        // ================================================================
+        // ENVIO - Abre o formulário com os dados preenchidos
+        // ================================================================
         
-        function submitToWebApp(data) {
-            return new Promise((resolve, reject) => {
-                // Constrói a URL com os parâmetros
+        function submitViaForm(data) {
+            return new Promise((resolve) => {
                 const params = new URLSearchParams();
                 for (const [key, value] of Object.entries(data)) {
                     if (value && value.trim && value.trim() !== '') {
                         params.append(key, value.trim());
                     }
                 }
-                const url = WEB_APP_URL + '?' + params.toString();
-
-                // Usa o método GET em vez de POST para evitar CORS
-                fetch(url, {
-                    method: 'GET',
-                    mode: 'no-cors'
-                })
-                .then(() => {
-                    // Como usamos 'no-cors', não podemos ler a resposta.
-                    // Vamos considerar sucesso se não houver erro de rede.
-                    resolve({ 
-                        success: true, 
-                        message: 'Dados enviados com sucesso para a planilha!' 
-                    });
-                })
-                .catch((error) => {
-                    console.error('Erro no envio:', error);
-                    reject(new Error('Falha ao enviar os dados. Verifique sua conexão.'));
+                
+                const url = FORM_URL + '?' + params.toString();
+                window.open(url, '_blank');
+                
+                resolve({ 
+                    success: true, 
+                    message: 'Formulário aberto! Basta clicar em "Enviar".' 
                 });
             });
         }
 
-        // ════════════════════════════════════════════════════════════════
-
+        // ================================================================
         // SUBMIT
+        // ================================================================
+
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
             clearFeedback();
 
-            // Validações
             if (!campoData.value) {
-                showFeedback('Por favor, selecione uma data.', 'error');
+                showFeedback('Selecione uma data.', 'error');
                 campoData.focus();
                 return;
             }
 
             if (!campoNome.value.trim()) {
-                showFeedback('Por favor, preencha o nome.', 'error');
+                showFeedback('Preencha o nome.', 'error');
                 campoNome.focus();
                 return;
             }
 
             if (!campoMovimentacao.value) {
-                showFeedback('Por favor, selecione ENTRADA ou SAÍDA.', 'error');
+                showFeedback('Selecione ENTRADA ou SAÍDA.', 'error');
                 return;
             }
 
             if (!campoTipo.value) {
-                showFeedback('Por favor, selecione um tipo.', 'error');
+                showFeedback('Selecione um tipo.', 'error');
                 campoTipo.focus();
                 return;
             }
 
             const valorLimpo = campoValor.value.replace(/\./g, '').replace(',', '.');
             if (!campoValor.value || parseFloat(valorLimpo) <= 0) {
-                showFeedback('Por favor, insira um valor válido (maior que zero).', 'error');
+                showFeedback('Insira um valor válido (maior que zero).', 'error');
                 campoValor.focus();
                 return;
             }
 
             if (!concordo.checked) {
-                showFeedback('Por favor, confirme que as informações estão corretas.', 'error');
+                showFeedback('Confirme que as informações estão corretas.', 'error');
                 concordo.focus();
                 return;
             }
 
             // Prepara os dados
             const formData = {};
-            formData['Data'] = campoData.value;
-            formData['Nome'] = campoNome.value.trim();
-            formData['Movimentacao'] = campoMovimentacao.value;
-            formData['Tipo'] = campoTipo.value;
-            formData['Valor'] = campoValor.value;
+            formData[FORM_IDS.data] = campoData.value;
+            formData[FORM_IDS.nome] = campoNome.value.trim();
+            formData[FORM_IDS.movimentacao] = campoMovimentacao.value;
+            formData[FORM_IDS.tipo] = campoTipo.value;
+            formData[FORM_IDS.valor] = campoValor.value;
 
             if (campoFoto.files.length > 0) {
-                formData['Foto'] = campoFoto.files[0].name;
+                formData[FORM_IDS.foto] = campoFoto.files[0].name;
             }
 
-            // Envia
             btnSubmit.disabled = true;
             btnSubmit.innerHTML = '<span class="spinner"></span> Enviando...';
-            showFeedback('Enviando dados para a planilha...', 'loading');
+            showFeedback('Abrindo formulário...', 'loading');
 
             try {
-                const result = await submitToWebApp(formData);
+                const result = await submitViaForm(formData);
                 showFeedback('✅ ' + result.message, 'success');
 
-                // Reseta o formulário
                 const dataAtual = campoData.value;
                 form.reset();
                 campoData.value = dataAtual;
@@ -779,21 +757,17 @@
                 concordo.checked = false;
 
             } catch (error) {
-                console.error('Erro:', error);
                 showFeedback('❌ ' + error.message, 'error');
             } finally {
                 btnSubmit.disabled = false;
-                btnSubmit.innerHTML = '<span>📨</span> Registrar Movimentação';
+                btnSubmit.innerHTML = '<span>📨</span> Registrar';
             }
         });
 
-        // INICIALIZAÇÃO
         setMovimentacao('entrada');
 
-        console.log('✅ APP CONFIGURADO!');
-        console.log('📋 URL do Web App:', WEB_APP_URL);
-        console.log('💡 Teste manual no navegador:');
-        console.log(WEB_APP_URL + '?Data=2026-08-24&Nome=Teste&Tipo=Dizimo&Valor=100');
+        console.log('✅ App pronto para uso!');
+        console.log('📋 Os dados serão abertos no Google Forms para envio.');
 
     })();
 </script>
