@@ -2,7 +2,7 @@ const APP_CONFIG = {
   APP_NAME: "Igreja Evangélica Kerigma",
   APP_SHORT_NAME: "Kerigma",
   VERSION: "1.0.0",
-  APPS_SCRIPT_URL: "COLE_AQUI_A_URL_DO_APPS_SCRIPT_/exec",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbzC7FCe1cLaG8XYc1PZZPwmAvuTAVqkx8ymF3UZcmArFK1xW-40FBmmjTWsUQEACtFm/exec",
   THEME: {
     greenDeep: "#0E2122",
     green: "#2B4839",
