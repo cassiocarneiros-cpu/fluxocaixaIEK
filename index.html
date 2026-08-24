@@ -3,23 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0E2122">
+<meta name="theme-color" content="#102B25">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Kerigma">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="igreja_kerigma_v3.png">
 <link rel="apple-touch-icon" href="igreja_kerigma_v3.png">
-<title>Igreja Evangélica Kerigma</title>
-<link rel="stylesheet" href="styles.css">
+<title>Kerigma — Formulário Digital</title>
+<link rel="stylesheet" href="styles.css?v=300">
 </head>
 <body>
 <div class="app-shell">
   <header class="hero">
-    <div class="hero-glow"></div>
     <img class="logo" src="igreja_kerigma_v3.png" alt="Igreja Evangélica Kerigma">
     <div class="brand">
-      <div class="eyebrow">IGREJA EVANGÉLICA</div>
+      <span>IGREJA EVANGÉLICA</span>
       <h1>KERIGMA</h1>
       <p>Formulário Digital</p>
     </div>
@@ -28,46 +27,48 @@
   <main>
     <section class="status-card" id="statusCard">
       <div class="status-dot" id="statusDot"></div>
-      <div>
-        <strong id="statusTitle">Conectando...</strong>
-        <span id="statusText">Carregando perguntas do formulário.</span>
+      <div class="status-content">
+        <strong id="statusTitle">Iniciando...</strong>
+        <span id="statusText">Preparando o formulário.</span>
       </div>
+      <button type="button" class="retry-btn" id="retryBtn" title="Tentar novamente">↻</button>
     </section>
 
-    <form id="dynamicForm" class="form-card" novalidate>
+    <section class="debug-card hidden" id="debugCard">
+      <strong>Diagnóstico</strong>
+      <pre id="debugText"></pre>
+      <p>Se aparecer “URL não configurada”, abra <b>config.js</b> e cole a URL do Apps Script terminada em <b>/exec</b>.</p>
+    </section>
+
+    <form id="dynamicForm" class="form-card hidden" novalidate>
       <div class="section-title">
         <span class="section-icon">✦</span>
         <div>
           <h2>Formulário</h2>
-          <p>Preencha os campos abaixo.</p>
+          <p id="questionCount">Carregando campos...</p>
         </div>
       </div>
       <div id="questions"></div>
-
       <div id="errorBox" class="message error hidden"></div>
-
       <button class="submit-btn" id="submitBtn" type="submit">
-        <span>Enviar formulário</span>
-        <span class="arrow">➜</span>
+        <span>Enviar formulário</span><span>➜</span>
       </button>
-      <p class="privacy">Os dados são enviados diretamente para a planilha configurada no Google Sheets.</p>
+      <p class="privacy">As respostas serão registradas na planilha configurada no Google Sheets.</p>
     </form>
 
     <section id="successBox" class="success-card hidden">
       <div class="check">✓</div>
       <h2>Enviado com sucesso!</h2>
-      <p>Seu formulário foi registrado.</p>
-      <button id="newFormBtn" class="secondary-btn">Preencher novo formulário</button>
+      <p>O registro foi confirmado.</p>
+      <button id="newFormBtn" class="secondary-btn" type="button">Preencher novo formulário</button>
     </section>
   </main>
 
   <footer>
-    <span>Igreja Evangélica Kerigma</span>
-    <span>•</span>
-    <span id="version"></span>
+    <span>Igreja Evangélica Kerigma</span><span>•</span><span id="version"></span>
   </footer>
 </div>
-<script src="config.js"></script>
-<script src="app.js"></script>
+<script src="config.js?v=300"></script>
+<script src="app.js?v=300"></script>
 </body>
 </html>

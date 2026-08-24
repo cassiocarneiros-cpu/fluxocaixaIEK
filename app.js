@@ -1,143 +1,363 @@
 (() => {
-  const cfg = window.APP_CONFIG;
+  "use strict";
+
+  const cfg = window.APP_CONFIG || {};
   const $ = id => document.getElementById(id);
-  const questions = $("questions");
   const form = $("dynamicForm");
+  const questionsBox = $("questions");
   const statusDot = $("statusDot");
   const statusTitle = $("statusTitle");
   const statusText = $("statusText");
   const errorBox = $("errorBox");
+  const debugCard = $("debugCard");
+  const debugText = $("debugText");
+  const retryBtn = $("retryBtn");
   const submitBtn = $("submitBtn");
   const successBox = $("successBox");
-  const version = $("version");
 
-  version.textContent = `v${cfg.VERSION}`;
+  $("version").textContent = "v" + (cfg.VERSION || "?");
 
-  function setStatus(type, title, text){
-    statusDot.className = "status-dot" + (type ? " "+type : "");
-    statusTitle.textContent = title; statusText.textContent = text;
-  }
-  function fail(msg){
-    errorBox.textContent = msg; errorBox.classList.remove("hidden");
-    setStatus("error","Atenção",msg);
-  }
-  function clearError(){ errorBox.classList.add("hidden"); errorBox.textContent=""; }
-
-  function esc(s){
-    return String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+  function status(type, title, text) {
+    statusDot.className = "status-dot " + (type || "");
+    statusTitle.textContent = title;
+    statusText.textContent = text;
   }
 
-  function fieldBase(q, control){
-    const wrap=document.createElement("div"); wrap.className="field";
-    const label=document.createElement("label");
-    label.innerHTML=esc(q.title)+(q.required?' <span class="required">*</span>':"");
+  function showDebug(msg) {
+    debugCard.classList.remove("hidden");
+    debugText.textContent = msg;
+  }
+
+  function fail(msg, debug) {
+    errorBox.textContent = msg;
+    errorBox.classList.remove("hidden");
+    status("error", "Não foi possível carregar", msg);
+    if (debug) showDebug(debug);
+  }
+
+  function clearError() {
+    errorBox.classList.add("hidden");
+    errorBox.textContent = "";
+  }
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, m =>
+      ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[m])
+    );
+  }
+
+  function addField(q, control) {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+
+    const label = document.createElement("label");
+    label.innerHTML = esc(q.title) + (q.required ? ' <span class="required">*</span>' : "");
     wrap.appendChild(label);
-    if(q.helpText){const h=document.createElement("div");h.className="hint";h.textContent=q.helpText;wrap.appendChild(h)}
+
+    if (q.helpText) {
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      hint.textContent = q.helpText;
+      wrap.appendChild(hint);
+    }
+
     wrap.appendChild(control);
     return wrap;
   }
 
-  function buildQuestion(q){
-    const name = `q_${q.index}`;
-    if(q.type==="RADIO" || q.type==="CHECKBOX"){
-      const list=document.createElement("div"); list.className="choice-list";
-      (q.choices||[]).forEach((c,i)=>{
-        const row=document.createElement("label"); row.className="choice";
-        const input=document.createElement("input");
-        input.type=q.type==="RADIO"?"radio":"checkbox"; input.name=name; input.value=c;
-        input.dataset.title=q.title;
-        if(q.required) input.dataset.required="true";
-        row.append(input,document.createTextNode(c)); list.appendChild(row);
+  function buildQuestion(q) {
+    const name = "q_" + q.index;
+
+    if (q.type === "RADIO" || q.type === "CHECKBOX") {
+      const list = document.createElement("div");
+      list.className = "choice-list";
+
+      (q.choices || []).forEach(value => {
+        const row = document.createElement("label");
+        row.className = "choice";
+
+        const input = document.createElement("input");
+        input.type = q.type === "RADIO" ? "radio" : "checkbox";
+        input.name = name;
+        input.value = value;
+        input.dataset.title = q.title;
+        input.dataset.required = q.required ? "true" : "false";
+
+        row.append(input, document.createTextNode(value));
+        list.appendChild(row);
       });
-      return fieldBase(q,list);
+
+      return addField(q, list);
     }
-    if(q.type==="LIST"){
-      const select=document.createElement("select"); select.name=name; select.dataset.title=q.title; select.required=!!q.required;
-      select.innerHTML='<option value="">Selecione...</option>';
-      (q.choices||[]).forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;select.appendChild(o)});
-      return fieldBase(q,select);
-    }
-    const input=document.createElement(q.type==="PARAGRAPH"?"textarea":"input");
-    input.name=name; input.dataset.title=q.title; input.required=!!q.required;
-    if(q.type==="DATE") input.type="date";
-    else if(q.type==="TIME") input.type="time";
-    else input.type="text";
-    return fieldBase(q,input);
-  }
 
-  function render(data){
-    questions.innerHTML="";
-    (data.questions||[]).forEach(q=>questions.appendChild(buildQuestion(q)));
-    if(!data.questions?.length) fail("O Google Forms não retornou perguntas. Verifique o ID do formulário e as permissões.");
-    else setStatus("ok","Formulário carregado",`${data.questions.length} campo(s) disponível(is).`);
-  }
+    if (q.type === "LIST" || q.type === "SCALE") {
+      const select = document.createElement("select");
+      select.name = name;
+      select.dataset.title = q.title;
+      select.required = !!q.required;
 
-  function loadQuestions(){
-    const url=cfg.APPS_SCRIPT_URL;
-    if(!url || url.includes("COLE_AQUI")) { fail("Configure primeiro a URL do Apps Script no arquivo config.js."); return; }
-    const cb="kerigma_cb_"+Date.now();
-    window[cb]=(data)=>{ try{delete window[cb]}catch(e){}; render(data); script.remove(); };
-    const script=document.createElement("script");
-    script.src=url+"?action=form&callback="+encodeURIComponent(cb);
-    script.onerror=()=>{fail("Não foi possível carregar o formulário. Confira a implantação do Apps Script como Aplicativo da Web e o acesso como 'Qualquer pessoa'.");script.remove();};
-    document.body.appendChild(script);
-  }
+      const first = document.createElement("option");
+      first.value = "";
+      first.textContent = "Selecione...";
+      select.appendChild(first);
 
-  function collect(){
-    const data={};
-    form.querySelectorAll("input[data-title],select[data-title],textarea[data-title]").forEach(el=>{
-      const title=el.dataset.title;
-      if(el.type==="checkbox"){
-        if(!data[title]) data[title]=[];
-        if(el.checked) data[title].push(el.value);
-      }else if(el.type==="radio"){
-        if(el.checked) data[title]=el.value;
-        else if(data[title]===undefined) data[title]="";
-      }else data[title]=el.value;
-    });
-    Object.keys(data).forEach(k=>{if(Array.isArray(data[k])) data[k]=data[k].join(", ")});
-    return data;
-  }
-
-  async function submit(e){
-    e.preventDefault(); clearError();
-    if(!form.checkValidity()){form.reportValidity();return}
-    const payload={submissionId:"KRG-"+Date.now()+"-"+Math.random().toString(36).slice(2,8).toUpperCase(), submittedAt:new Date().toISOString(), answers:collect()};
-    submitBtn.disabled=true; submitBtn.querySelector("span").textContent="Enviando...";
-    setStatus("","Enviando","Registrando os dados na planilha...");
-    try{
-      await fetch(cfg.APPS_SCRIPT_URL,{
-        method:"POST",redirect:"follow",
-        headers:{"Content-Type":"text/plain;charset=utf-8"},
-        body:JSON.stringify(payload)
+      (q.choices || []).forEach(value => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value;
+        select.appendChild(option);
       });
-      await new Promise(r=>setTimeout(r,900));
-      const ok=await checkStatus(payload.submissionId);
-      if(!ok) throw new Error("O servidor não confirmou o registro. Verifique o Apps Script e a planilha.");
-      form.classList.add("hidden"); successBox.classList.remove("hidden");
-      setStatus("ok","Enviado","Dados registrados com sucesso.");
-    }catch(err){
-      console.error(err); fail(err.message||"Falha no envio.");
-    }finally{
-      submitBtn.disabled=false; submitBtn.querySelector("span").textContent="Enviar formulário";
+
+      return addField(q, select);
     }
+
+    if (q.type === "GRID" || q.type === "CHECKBOX_GRID") {
+      const table = document.createElement("div");
+      table.className = "grid-question";
+
+      const rows = q.rows || [];
+      const cols = q.columns || [];
+
+      rows.forEach((rowText, ri) => {
+        const row = document.createElement("div");
+        row.className = "grid-row";
+        const title = document.createElement("div");
+        title.className = "grid-row-title";
+        title.textContent = rowText;
+        row.appendChild(title);
+
+        const select = document.createElement("select");
+        select.dataset.title = q.title + " — " + rowText;
+        select.dataset.grid = "true";
+        select.name = name + "_" + ri;
+
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = "Selecione...";
+        select.appendChild(empty);
+
+        cols.forEach(c => {
+          const o = document.createElement("option");
+          o.value = c;
+          o.textContent = c;
+          select.appendChild(o);
+        });
+
+        row.appendChild(select);
+        table.appendChild(row);
+      });
+
+      return addField(q, table);
+    }
+
+    const control = document.createElement(q.type === "PARAGRAPH" ? "textarea" : "input");
+    control.name = name;
+    control.dataset.title = q.title;
+    control.required = !!q.required;
+
+    if (q.type === "DATE") control.type = "date";
+    else if (q.type === "TIME") control.type = "time";
+    else if (q.type === "DURATION") control.type = "text";
+    else control.type = "text";
+
+    return addField(q, control);
   }
 
-  function checkStatus(id){
-    return new Promise(resolve=>{
-      const cb="kerigma_status_"+Date.now();
-      let done=false;
-      const script=document.createElement("script");
-      const timer=setTimeout(()=>{if(!done){done=true;script.remove();try{delete window[cb]}catch(e){};resolve(false)}},8000);
-      window[cb]=(data)=>{if(done)return;done=true;clearTimeout(timer);script.remove();try{delete window[cb]}catch(e){};resolve(!!data.success)};
-      script.src=cfg.APPS_SCRIPT_URL+"?action=status&id="+encodeURIComponent(id)+"&callback="+encodeURIComponent(cb);
-      script.onerror=()=>{if(!done){done=true;clearTimeout(timer);script.remove();try{delete window[cb]}catch(e){};resolve(false)}};
+  function render(data) {
+    if (!data || data.success === false) {
+      throw new Error(data?.error || "O Apps Script retornou uma resposta inválida.");
+    }
+
+    const qs = data.questions || [];
+    questionsBox.innerHTML = "";
+
+    qs.forEach(q => questionsBox.appendChild(buildQuestion(q)));
+
+    if (!qs.length) {
+      throw new Error("O Google Forms foi acessado, mas não retornou nenhuma pergunta.");
+    }
+
+    $("questionCount").textContent = qs.length + " campo(s) carregado(s) do Google Forms.";
+    form.classList.remove("hidden");
+    status("ok", "Formulário carregado", qs.length + " pergunta(s) encontrada(s).");
+    clearError();
+    debugCard.classList.add("hidden");
+  }
+
+  function jsonp(url, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+      const cb = "__kerigma_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+      const script = document.createElement("script");
+      let finished = false;
+
+      const finish = (err, data) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (_) {}
+        script.remove();
+        err ? reject(err) : resolve(data);
+      };
+
+      window[cb] = data => finish(null, data);
+
+      script.onerror = () => finish(new Error(
+        "O navegador não conseguiu acessar o Apps Script. Normalmente isso ocorre quando a implantação não está como “Qualquer pessoa” ou a URL /exec está incorreta."
+      ));
+
+      const timer = setTimeout(() => finish(new Error(
+        "Tempo esgotado ao consultar o Apps Script. Verifique a URL /exec, a implantação e as permissões."
+      )), timeoutMs);
+
+      script.src = url + (url.includes("?") ? "&" : "?") +
+        "action=form&callback=" + encodeURIComponent(cb) +
+        "&_=" + Date.now();
+
       document.body.appendChild(script);
     });
   }
 
-  form.addEventListener("submit",submit);
-  $("newFormBtn").addEventListener("click",()=>{successBox.classList.add("hidden");form.classList.remove("hidden");form.reset();window.scrollTo({top:0,behavior:"smooth"});});
-  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
+  async function loadQuestions() {
+    form.classList.add("hidden");
+    status("", "Conectando...", "Consultando o Google Forms pelo Apps Script.");
+    clearError();
+
+    const url = String(cfg.APPS_SCRIPT_URL || "").trim();
+
+    if (!url || url.includes("COLE_AQUI")) {
+      const msg = "A URL do Apps Script ainda não foi configurada.";
+      fail(msg, "Edite config.js e substitua APPS_SCRIPT_URL pela URL pública terminada em /exec.");
+      return;
+    }
+
+    try {
+      const data = await jsonp(url);
+      render(data);
+    } catch (err) {
+      console.error(err);
+      fail(err.message || "Falha ao carregar as perguntas.",
+        "URL usada: " + url + "\n\nDetalhe: " + (err.message || err));
+    }
+  }
+
+  function collect() {
+    const answers = {};
+
+    form.querySelectorAll("input[data-title], select[data-title], textarea[data-title]").forEach(el => {
+      const title = el.dataset.title;
+
+      if (el.type === "checkbox") {
+        if (!answers[title]) answers[title] = [];
+        if (el.checked) answers[title].push(el.value);
+      } else if (el.type === "radio") {
+        if (el.checked) answers[title] = el.value;
+      } else if (el.dataset.grid === "true") {
+        answers[title] = el.value;
+      } else {
+        answers[title] = el.value;
+      }
+    });
+
+    Object.keys(answers).forEach(k => {
+      if (Array.isArray(answers[k])) answers[k] = answers[k].join(", ");
+    });
+
+    return answers;
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    clearError();
+
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+
+    const submissionId = "KRG-" + Date.now() + "-" +
+      Math.random().toString(36).slice(2, 8).toUpperCase();
+
+    const payload = {
+      submissionId,
+      submittedAt: new Date().toISOString(),
+      answers: collect()
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.querySelector("span").textContent = "Enviando...";
+    status("", "Enviando...", "Registrando as respostas na planilha.");
+
+    try {
+      const response = await fetch(cfg.APPS_SCRIPT_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await response.text();
+      let result = {};
+      try { result = JSON.parse(text); } catch (_) {}
+
+      if (result.success === false) {
+        throw new Error(result.error || "O Apps Script recusou o envio.");
+      }
+
+      await new Promise(r => setTimeout(r, 500));
+      const confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
+
+      if (!confirmed) {
+        throw new Error("O envio foi feito, mas o Apps Script não confirmou o registro na planilha.");
+      }
+
+      form.classList.add("hidden");
+      successBox.classList.remove("hidden");
+      status("ok", "Enviado com sucesso", "Registro confirmado na planilha.");
+    } catch (err) {
+      console.error(err);
+      fail(err.message || "Falha no envio.", "Detalhe do envio: " + (err.message || err));
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.querySelector("span").textContent = "Enviar formulário";
+    }
+  }
+
+  function jsonpStatus(url, id) {
+    return new Promise(resolve => {
+      const cb = "__kerigma_status_" + Date.now();
+      const script = document.createElement("script");
+      let done = false;
+
+      const finish = value => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (_) {}
+        script.remove();
+        resolve(!!value);
+      };
+
+      window[cb] = data => finish(data && data.success);
+      script.onerror = () => finish(false);
+
+      const timer = setTimeout(() => finish(false), 8000);
+      script.src = url + (url.includes("?") ? "&" : "?") +
+        "action=status&id=" + encodeURIComponent(id) +
+        "&callback=" + encodeURIComponent(cb);
+
+      document.body.appendChild(script);
+    });
+  }
+
+  retryBtn.addEventListener("click", loadQuestions);
+  form.addEventListener("submit", submit);
+
+  $("newFormBtn").addEventListener("click", () => {
+    successBox.classList.add("hidden");
+    form.classList.remove("hidden");
+    form.reset();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
   loadQuestions();
 })();

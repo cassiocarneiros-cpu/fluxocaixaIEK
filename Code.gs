@@ -1,17 +1,14 @@
 /**
- * KERIGMA — Google Apps Script
- * Fonte dos campos: Google Forms
+ * KERIGMA — Apps Script V2
+ *
+ * Fonte das perguntas: Google Forms
  * Destino: Google Sheets
  *
- * Implantação:
- * 1) Extensões > Apps Script na planilha de destino.
- * 2) Cole este código.
- * 3) Salve.
- * 4) Execute a função "testarConfiguracao" uma vez e autorize.
- * 5) Implantar > Nova implantação > Aplicativo da Web.
- * 6) Executar como: Eu.
- * 7) Quem tem acesso: Qualquer pessoa.
- * 8) Copie a URL /exec para config.js.
+ * IMPORTANTE:
+ * - Publique como Aplicativo da Web.
+ * - Executar como: Eu.
+ * - Quem tem acesso: Qualquer pessoa.
+ * - Use a URL /exec no config.js.
  */
 
 const CONFIG = {
@@ -24,126 +21,293 @@ const CONFIG = {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   const callback = p.callback || '';
-  let data;
+  let result;
 
   try {
     if (p.action === 'form') {
-      data = {success:true, questions:getFormQuestions_()};
+      result = {
+        success: true,
+        app: 'Kerigma',
+        formTitle: FormApp.openById(CONFIG.FORM_ID).getTitle(),
+        questions: getFormQuestions_()
+      };
     } else if (p.action === 'status') {
       const id = p.id || '';
-      data = {success: !!id && CacheService.getScriptCache().get('status_'+id) === 'OK'};
+      result = {
+        success: !!id &&
+          CacheService.getScriptCache().get('status_' + id) === 'OK'
+      };
     } else {
-      data = {success:true, app:'Kerigma', message:'Web App ativo.'};
+      result = {
+        success: true,
+        app: 'Kerigma',
+        message: 'Apps Script ativo.',
+        form: FormApp.openById(CONFIG.FORM_ID).getTitle(),
+        questions: getFormQuestions_().length
+      };
     }
   } catch (err) {
-    data = {success:false, error:String(err && err.message || err)};
+    result = {
+      success: false,
+      error: String(err && err.message || err),
+      stack: String(err && err.stack || '')
+    };
   }
 
-  const json = JSON.stringify(data);
+  const json = JSON.stringify(result);
+
   if (callback) {
-    return ContentService.createTextOutput(callback+'('+json+');')
+    return ContentService
+      .createTextOutput(callback + '(' + json + ');')
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
-  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
-  let result;
   try {
-    if (!e || !e.postData || !e.postData.contents) throw new Error('POST sem conteúdo.');
+    if (!e || !e.postData || !e.postData.contents) {
+      throw new Error('POST sem conteúdo.');
+    }
+
     const payload = JSON.parse(e.postData.contents);
-    if (!payload.submissionId) throw new Error('submissionId não informado.');
+    const submissionId = String(payload.submissionId || '').trim();
+
+    if (!submissionId) {
+      throw new Error('submissionId não informado.');
+    }
+
     const answers = payload.answers || {};
     const sheet = getTargetSheet_();
     const headers = getHeaders_(sheet);
-    const row = headers.map(h => {
-      const key = normalize_(h);
-      if (key === normalize_('Data e Hora') || key === normalize_('DataHora') || key === normalize_('Timestamp')) {
+
+    // Evita duplicação acidental do mesmo envio.
+    const existing = CacheService.getScriptCache().get('status_' + submissionId);
+    if (existing === 'OK') {
+      return json_({ success: true, duplicate: true, submissionId });
+    }
+
+    const row = headers.map(header => {
+      const n = normalize_(header);
+
+      if (
+        n === normalize_('Data e Hora') ||
+        n === normalize_('DataHora') ||
+        n === normalize_('Timestamp') ||
+        n === normalize_('Carimbo de data/hora')
+      ) {
         return new Date();
       }
-      const value = findAnswer_(answers, h);
-      return value;
+
+      return findAnswer_(answers, header);
     });
+
     sheet.appendRow(row);
-    CacheService.getScriptCache().put('status_'+payload.submissionId,'OK',CONFIG.STATUS_TTL_SECONDS);
-    result = {success:true, submissionId:payload.submissionId};
+
+    CacheService.getScriptCache().put(
+      'status_' + submissionId,
+      'OK',
+      CONFIG.STATUS_TTL_SECONDS
+    );
+
+    return json_({
+      success: true,
+      submissionId,
+      sheet: sheet.getName(),
+      row: sheet.getLastRow()
+    });
+
   } catch (err) {
-    result = {success:false,error:String(err && err.message || err)};
+    return json_({
+      success: false,
+      error: String(err && err.message || err)
+    });
   }
-  return ContentService.createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function getFormQuestions_() {
   const form = FormApp.openById(CONFIG.FORM_ID);
+
   return form.getItems().map((item, index) => {
     const type = item.getType();
-    const base = {index:index, title:item.getTitle(), type:String(type), required:false, choices:[], helpText:''};
+    const title = item.getTitle ? item.getTitle() : '';
+    const base = {
+      index,
+      title,
+      type: String(type),
+      required: false,
+      choices: [],
+      rows: [],
+      columns: [],
+      helpText: ''
+    };
 
-    try { base.required = item.asParagraphTextItem ? false : false; } catch(e) {}
-    // O Forms não expõe "required" de forma uniforme para todos os tipos.
-    // Campos são tratados como opcionais por padrão; o formulário HTML valida os controles
-    // essenciais que o usuário preencher explicitamente.
-    switch(type) {
+    try {
+      if (typeof item.isRequired === 'function') {
+        base.required = item.isRequired();
+      }
+    } catch (_) {}
+
+    try {
+      if (typeof item.getHelpText === 'function') {
+        base.helpText = item.getHelpText() || '';
+      }
+    } catch (_) {}
+
+    switch (type) {
       case FormApp.ItemType.TEXT:
-        base.type='TEXT'; break;
+        base.type = 'TEXT';
+        break;
+
       case FormApp.ItemType.PARAGRAPH_TEXT:
-        base.type='PARAGRAPH'; break;
+        base.type = 'PARAGRAPH';
+        break;
+
       case FormApp.ItemType.MULTIPLE_CHOICE:
-        base.type='RADIO';
-        base.choices=item.asMultipleChoiceItem().getChoices().map(c=>c.getValue()); break;
+        base.type = 'RADIO';
+        base.choices = item.asMultipleChoiceItem()
+          .getChoices().map(c => c.getValue());
+        break;
+
       case FormApp.ItemType.LIST:
-        base.type='LIST';
-        base.choices=item.asListItem().getChoices().map(c=>c.getValue()); break;
+        base.type = 'LIST';
+        base.choices = item.asListItem()
+          .getChoices().map(c => c.getValue());
+        break;
+
       case FormApp.ItemType.CHECKBOX:
-        base.type='CHECKBOX';
-        base.choices=item.asCheckboxItem().getChoices().map(c=>c.getValue()); break;
+        base.type = 'CHECKBOX';
+        base.choices = item.asCheckboxItem()
+          .getChoices().map(c => c.getValue());
+        break;
+
+      case FormApp.ItemType.SCALE:
+        base.type = 'SCALE';
+        const scale = item.asScaleItem();
+        for (let i = scale.getLowerBound(); i <= scale.getUpperBound(); i++) {
+          base.choices.push(String(i));
+        }
+        break;
+
+      case FormApp.ItemType.GRID:
+        base.type = 'GRID';
+        const grid = item.asGridItem();
+        base.rows = grid.getRows();
+        base.columns = grid.getColumns();
+        break;
+
+      case FormApp.ItemType.CHECKBOX_GRID:
+        base.type = 'CHECKBOX_GRID';
+        const cgrid = item.asCheckboxGridItem();
+        base.rows = cgrid.getRows();
+        base.columns = cgrid.getColumns();
+        break;
+
       case FormApp.ItemType.DATE:
-        base.type='DATE'; break;
+        base.type = 'DATE';
+        break;
+
       case FormApp.ItemType.TIME:
-        base.type='TIME'; break;
+        base.type = 'TIME';
+        break;
+
+      case FormApp.ItemType.DURATION:
+        base.type = 'DURATION';
+        break;
+
+      case FormApp.ItemType.SECTION_HEADER:
+      case FormApp.ItemType.PAGE_BREAK:
+      case FormApp.ItemType.IMAGE:
+      case FormApp.ItemType.VIDEO:
+        base.type = 'LAYOUT';
+        break;
+
       default:
-        base.type='TEXT';
+        base.type = 'TEXT';
     }
+
     return base;
-  }).filter(q => q.title && !['SECTION_HEADER','PAGE_BREAK','IMAGE','VIDEO'].includes(q.type));
+  }).filter(q => q.title && q.type !== 'LAYOUT');
 }
 
 function getTargetSheet_() {
   const ss = SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
-  const sheets = ss.getSheets();
-  const sheet = sheets.find(s => s.getSheetId() === CONFIG.SHEET_GID);
-  if (!sheet) throw new Error('A aba com o GID '+CONFIG.SHEET_GID+' não foi encontrada.');
+  const sheet = ss.getSheets().find(
+    s => s.getSheetId() === CONFIG.SHEET_GID
+  );
+
+  if (!sheet) {
+    throw new Error(
+      'A aba com o GID ' + CONFIG.SHEET_GID + ' não foi encontrada.'
+    );
+  }
+
   return sheet;
 }
 
 function getHeaders_(sheet) {
   const lastCol = sheet.getLastColumn();
-  if (!lastCol) throw new Error('A planilha não possui cabeçalhos na primeira linha.');
-  return sheet.getRange(1,1,1,lastCol).getValues()[0].map(v=>String(v).trim());
+
+  if (!lastCol) {
+    throw new Error(
+      'A primeira linha da planilha precisa conter os nomes das colunas.'
+    );
+  }
+
+  return sheet.getRange(1, 1, 1, lastCol)
+    .getValues()[0]
+    .map(v => String(v).trim());
 }
 
 function findAnswer_(answers, header) {
   const target = normalize_(header);
   const keys = Object.keys(answers);
-  const exact = keys.find(k=>normalize_(k)===target);
+
+  const exact = keys.find(k => normalize_(k) === target);
   if (exact !== undefined) return answers[exact];
-  const partial = keys.find(k=>{
-    const nk=normalize_(k);
-    return nk===target || nk.includes(target) || target.includes(nk);
+
+  const partial = keys.find(k => {
+    const nk = normalize_(k);
+    return nk === target || nk.includes(target) || target.includes(nk);
   });
+
   return partial !== undefined ? answers[partial] : '';
 }
 
-function normalize_(s) {
-  return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
-    .replace(/[^a-z0-9]+/g,' ').trim();
+function normalize_(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
 }
 
+function json_(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Execute esta função UMA VEZ no editor do Apps Script.
+ * Ela confirma se o Forms e a planilha podem ser acessados.
+ */
 function testarConfiguracao() {
   const form = FormApp.openById(CONFIG.FORM_ID);
   const sheet = getTargetSheet_();
-  Logger.log('Formulário: '+form.getTitle());
-  Logger.log('Planilha: '+sheet.getName());
-  Logger.log('Perguntas: '+getFormQuestions_().length);
+  const questions = getFormQuestions_();
+
+  Logger.log('FORMULÁRIO: ' + form.getTitle());
+  Logger.log('PERGUNTAS: ' + questions.length);
+  questions.forEach((q, i) =>
+    Logger.log((i + 1) + '. ' + q.title + ' [' + q.type + ']')
+  );
+
+  Logger.log('PLANILHA: ' + sheet.getName());
+  Logger.log('LINHA DE CABEÇALHOS: ' +
+    JSON.stringify(getHeaders_(sheet)));
 }
