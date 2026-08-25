@@ -533,18 +533,22 @@
       // O GitHub Pages e o Apps Script estão em domínios diferentes.
       // Em vez de tentar ler a resposta do POST (CORS), fazemos um POST
       // simples em no-cors e depois consultamos o status via JSONP.
+      // ENVIAMOS COMO FORMULÁRIO URL-ENCODED.
+      // É UMA REQUISIÇÃO SIMPLE E EVITA O PREFLIGHT/CORS DO GITHUB PAGES.
+      const body = new URLSearchParams();
+      body.set("payload", JSON.stringify(payload));
+
       await fetch(cfg.APPS_SCRIPT_URL, {
         method: "POST",
         mode: "no-cors",
         redirect: "follow",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
+        body: body
       });
 
       // O Apps Script pode levar alguns segundos para concluir o Drive.
       let confirmed = false;
-      for (let attempt = 0; attempt < 12; attempt++) {
-        await new Promise(r => setTimeout(r, attempt === 0 ? 1200 : 900));
+      for (let attempt = 0; attempt < 20; attempt++) {
+        await new Promise(r => setTimeout(r, attempt === 0 ? 1500 : 1000));
         confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
         if (confirmed) break;
       }

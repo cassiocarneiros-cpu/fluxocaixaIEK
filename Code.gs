@@ -70,11 +70,21 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      throw new Error('POST SEM CONTEÚDO.');
+    // O APP ENVIA COMO application/x-www-form-urlencoded.
+    // ISSO EVITA PRE-FLIGHT/CORS DO GITHUB PAGES PARA O APPS SCRIPT.
+    let raw = '';
+
+    if (e && e.parameter && e.parameter.payload) {
+      raw = e.parameter.payload;
+    } else if (e && e.postData && e.postData.contents) {
+      raw = e.postData.contents;
     }
 
-    const payload = JSON.parse(e.postData.contents);
+    if (!raw) {
+      throw new Error('DADOS DO ENVIO NÃO RECEBIDOS.');
+    }
+
+    const payload = JSON.parse(raw);
     const submissionId = String(payload.submissionId || '').trim();
 
     if (!submissionId) {
@@ -82,16 +92,23 @@ function doPost(e) {
     }
 
     const cache = CacheService.getScriptCache();
-    if (cache.get('status_' + submissionId) === 'OK') {
-      return json_({ success: true, duplicate: true, submissionId: submissionId });
+    const cacheKey = 'status_' + submissionId;
+
+    if (cache.get(cacheKey) === 'OK') {
+      return json_({
+        success: true,
+        duplicate: true,
+        submissionId: submissionId
+      });
     }
 
     const answers = payload.answers || {};
     const sheet = getTargetSheet_();
     const headers = getHeaders_(sheet);
 
-    // 1) PRIMEIRO GRAVA O LANÇAMENTO NA PLANILHA.
-    // UM ERRO NO UPLOAD DA FOTO NÃO PODE APAGAR/PERDER O LANÇAMENTO.
+    // ============================================================
+    // 1) GRAVA PRIMEIRO NA PLANILHA.
+    // ============================================================
     const row = headers.map(function(header) {
       const n = normalize_(header);
 
@@ -108,10 +125,12 @@ function doPost(e) {
     });
 
     sheet.appendRow(row);
+    SpreadsheetApp.flush();
     const savedRow = sheet.getLastRow();
 
-    // 2) DEPOIS TENTA SALVAR A FOTO.
-    // SE FALHAR, OS DADOS JÁ ESTÃO NA PLANILHA.
+    // ============================================================
+    // 2) FOTO DEPOIS. SE FALHAR, O LANÇAMENTO CONTINUA SALVO.
+    // ============================================================
     let photoUrl = '';
     let photoError = '';
 
@@ -129,6 +148,7 @@ function doPost(e) {
 
         if (photoCol >= 0 && photoUrl) {
           sheet.getRange(savedRow, photoCol + 1).setValue(photoUrl);
+          SpreadsheetApp.flush();
         }
       } catch (photoErr) {
         photoError = String(photoErr && photoErr.message || photoErr);
@@ -136,7 +156,8 @@ function doPost(e) {
       }
     }
 
-    cache.put('status_' + submissionId, 'OK', CONFIG.STATUS_TTL_SECONDS);
+    // Só marca como OK depois de a linha da planilha ter sido efetivamente criada.
+    cache.put(cacheKey, 'OK', CONFIG.STATUS_TTL_SECONDS);
 
     return json_({
       success: true,
