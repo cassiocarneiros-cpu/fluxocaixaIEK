@@ -526,56 +526,65 @@
     if (photoRequired && !original) { fail("A FOTO É OBRIGATÓRIA."); return; }
 
     try {
-      submitBtn.disabled=true;
-      submitBtn.querySelector("span").textContent="ENVIANDO...";
+      submitBtn.disabled = true;
+      submitBtn.querySelector("span").textContent = "ENVIANDO...";
       status("", "SALVANDO...", "GRAVANDO AS RESPOSTAS NA PLANILHA.");
 
-      // PRIMEIRO POST: SOMENTE OS DADOS. NÃO ENVIA FOTO JUNTO.
-      const fields={action:"save",submissionId:submissionId,submittedAt:new Date().toISOString()};
+      const fields = { action: "save", submissionId: submissionId, submittedAt: new Date().toISOString() };
       const qs = (window.__kerigmaQuestions || []);
-      qs.forEach(q=>{
-        let value=answers[q.title];
-        if(value===undefined) value="";
-        fields["answer_"+q.index]=String(value).toUpperCase();
+      qs.forEach(q => {
+        let value = answers[q.title];
+        if (value === undefined) value = "";
+        fields["answer_" + q.index] = String(value).toUpperCase();
       });
-      await postNative(fields,30000);
 
-      // CONFIRMAÇÃO DO REGISTRO DA PLANILHA.
-      let confirmed=false;
-      for(let i=0;i<12;i++){
-        await new Promise(r=>setTimeout(r,700));
-        try{ confirmed=await jsonpStatus(cfg.APPS_SCRIPT_URL,submissionId); }catch(_){ confirmed=false; }
-        if(confirmed) break;
+      const saveResult = await jsonpRequest(cfg.APPS_SCRIPT_URL, fields, 30000);
+      if (!saveResult || saveResult.success !== true || saveResult.confirmed !== true) {
+        throw new Error((saveResult && saveResult.error) || "O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
       }
-      if(!confirmed) throw new Error("O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
 
-      // SEGUNDO POST: FOTO. SE FALHAR, A PLANILHA JÁ ESTÁ SALVA.
-      let photoSaved=false;
-      if(original){
+      let photoSaved = false;
+      if (original) {
         status("", "ENVIANDO FOTO...", "A RESPOSTA JÁ FOI SALVA. AGORA ENVIANDO A FOTO.");
-        const optimized=await compressImage(original,1600,0.72);
-        if(optimized.size>4*1024*1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
-        const dataUrl=await blobToDataUrl(optimized);
-        const photoResult = await postNative({
-          action:"photo",
-          submissionId:submissionId,
-          photoQuestion:photoField._photoTitle || "Foto da Entrada ou Saída",
-          mimeType:"image/jpeg",
-          photoData:dataUrl
-        },60000);
-        photoSaved=true;
+        const optimized = await compressImage(original, 1600, 0.72);
+        if (optimized.size > 4 * 1024 * 1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
+        const dataUrl = await blobToDataUrl(optimized);
+        await postNative({ action: "photo", submissionId: submissionId, photoQuestion: photoField._photoTitle || "Foto da Entrada ou Saída", mimeType: "image/jpeg", photoData: dataUrl }, 60000);
+        photoSaved = true;
       }
 
       form.classList.add("hidden");
       successBox.classList.remove("hidden");
       status("ok", "ENVIADO COM SUCESSO", photoSaved ? "DADOS E FOTO REGISTRADOS." : "DADOS REGISTRADOS NA PLANILHA.");
-    } catch(err){
+    } catch (err) {
       console.error(err);
-      fail(String(err.message||"FALHA NO ENVIO.").toUpperCase(),"DETALHE: "+(err.message||err));
+      fail(String(err.message || "FALHA NO ENVIO.").toUpperCase(), "DETALHE: " + (err.message || err));
     } finally {
-      submitBtn.disabled=false;
-      submitBtn.querySelector("span").textContent="ENVIAR FORMULÁRIO";
+      submitBtn.disabled = false;
+      submitBtn.querySelector("span").textContent = "ENVIAR FORMULÁRIO";
     }
+  }
+
+  function jsonpRequest(url, params, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const cb = "__kerigma_jsonp_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+      const script = document.createElement("script");
+      let done = false;
+      const finish = (err, value) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { delete window[cb]; } catch (_) {}
+        script.remove();
+        err ? reject(err) : resolve(value);
+      };
+      window[cb] = data => finish(null, data);
+      script.onerror = () => finish(new Error("NÃO FOI POSSÍVEL CONECTAR AO APPS SCRIPT."));
+      const query = Object.keys(params).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(String(params[k] ?? ""))).join("&");
+      const timer = setTimeout(() => finish(new Error("TEMPO ESGOTADO AO AGUARDAR O APPS SCRIPT.")), timeoutMs);
+      script.src = url + (url.includes("?") ? "&" : "?") + query + "&callback=" + encodeURIComponent(cb);
+      document.body.appendChild(script);
+    });
   }
 
   function jsonpStatus(url, id) {
