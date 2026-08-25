@@ -1,4 +1,4 @@
-# KERIGMA V5.4.1 — Fluxo de Caixa da IEK
+# KERIGMA V5.4.1 — CORREÇÃO DO ENVIO
 
 Fluxo de Caixa IEK para GitHub Pages + Google Apps Script + Google Sheets + Google Drive.
 
@@ -7,7 +7,6 @@ Fluxo de Caixa IEK para GitHub Pages + Google Apps Script + Google Sheets + Goog
 - **Corrigido o envio dos dados principais**: Agora utiliza `fetch` com `no-cors` para enviar os dados via POST.
 - **Confirmação via JSONP**: Após o envio, o sistema verifica o status da gravação usando JSONP.
 - **Mais robusto**: Funciona em Android, iPhone e Windows.
-- **Título atualizado**: "Fluxo de Caixa da IEK" no lugar de "Formulário".
 
 ## 📋 Instruções de implantação
 
