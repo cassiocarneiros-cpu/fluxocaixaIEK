@@ -84,8 +84,6 @@
     const box = document.createElement("div");
     box.className = "photo-box";
 
-    // DOIS INPUTS NATIVOS: UM PARA CÂMERA E OUTRO PARA ARQUIVO/GALERIA.
-    // ISSO EVITA DEPENDER DO COMPORTAMENTO VARIÁVEL DE capture=...
     const cameraInput = document.createElement("input");
     cameraInput.className = "photo-input-native";
     cameraInput.type = "file";
@@ -145,7 +143,6 @@
         alert("SELECIONE UMA IMAGEM.");
         return;
       }
-      // Mantém a foto escolhida em ambos os inputs através de uma propriedade comum.
       wrap._selectedPhotoFile = file;
       wrap._photoTitle = q.title;
       img.src = URL.createObjectURL(file);
@@ -176,7 +173,6 @@
   }
 
   function openPhotoChooser(cameraInput, fileInput) {
-    // Modal explícito: no celular o usuário escolhe a origem da foto.
     const modal = document.createElement("div");
     modal.className = "photo-choice-modal";
     modal.innerHTML = `
@@ -217,8 +213,6 @@
     let q = quality;
     let blob = null;
 
-    // O CAMPO PODE ACEITAR ARQUIVOS DE ATÉ 1 GB, MAS O ARQUIVO
-    // ENVIADO AO APPS SCRIPT É COMPRIMIDO PARA ATÉ 5 MB.
     for (let attempt = 0; attempt < 7; attempt++) {
       const scale = Math.min(1, dimension / Math.max(bitmap.width, bitmap.height));
       const canvas = document.createElement("canvas");
@@ -477,7 +471,6 @@
     return field && field._selectedPhotoFile ? field._selectedPhotoFile : null;
   }
 
-
   function postNative(fields, timeoutMs = 30000) {
     return new Promise((resolve, reject) => {
       const iframeName = "kerigma_submit_frame_" + Date.now() + "_" + Math.random().toString(36).slice(2);
@@ -513,6 +506,62 @@
     });
   }
 
+  // Função para enviar dados via POST com fetch (mais confiável que iframe)
+  async function postFetch(url, data, timeoutMs = 30000) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const formData = new URLSearchParams();
+      Object.entries(data).forEach(([key, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach(v => formData.append(key, String(v ?? "")));
+        } else {
+          formData.append(key, String(value ?? ""));
+        }
+      });
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: formData.toString(),
+        signal: controller.signal,
+        mode: 'no-cors' // Importante para CORS com Apps Script
+      });
+
+      clearTimeout(timeout);
+      
+      // Com no-cors, não podemos ler a resposta diretamente
+      // Vamos usar o método de status via JSONP para confirmar
+      return true;
+    } catch (err) {
+      clearTimeout(timeout);
+      if (err.name === 'AbortError') {
+        throw new Error("TEMPO ESGOTADO AO ENVIAR AO APPS SCRIPT.");
+      }
+      throw err;
+    }
+  }
+
+  // Função para verificar status via JSONP
+  async function checkStatusViaJsonp(submissionId, timeoutMs = 30000) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      try {
+        const result = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
+        if (result && result.confirmed === true) {
+          return result;
+        }
+      } catch (e) {
+        // continua tentando
+      }
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+    return null;
+  }
+
   async function submit(e) {
     e.preventDefault();
     clearError();
@@ -530,7 +579,12 @@
       submitBtn.querySelector("span").textContent = "ENVIANDO...";
       status("", "SALVANDO...", "GRAVANDO AS RESPOSTAS NA PLANILHA.");
 
-      const fields = { action: "save", submissionId: submissionId, submittedAt: new Date().toISOString() };
+      // Prepara os dados para enviar via POST
+      const fields = { 
+        action: "save", 
+        submissionId: submissionId, 
+        submittedAt: new Date().toISOString() 
+      };
       const qs = (window.__kerigmaQuestions || []);
       qs.forEach(q => {
         let value = answers[q.title];
@@ -538,12 +592,15 @@
         fields["answer_" + q.index] = String(value).toUpperCase();
       });
 
-      // ENVIA OS DADOS PRINCIPAIS POR GET/JSONP.
-      // O APPS SCRIPT RETORNA A CONFIRMAÇÃO DA LINHA GRAVADA.
-      // ISSO EVITA A LIMITAÇÃO DE LEITURA CROSS-ORIGIN DO POST EM IFRAME.
-      const saveResult = await jsonpRequest(cfg.APPS_SCRIPT_URL, fields, 30000);
-      if (!saveResult || saveResult.success !== true || saveResult.confirmed !== true) {
-        throw new Error((saveResult && saveResult.error) || "O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
+      // Envia via POST com fetch (no-cors)
+      await postFetch(cfg.APPS_SCRIPT_URL, fields, 30000);
+
+      // Aguarda a confirmação via JSONP
+      status("", "AGUARDANDO CONFIRMAÇÃO...", "VERIFICANDO SE OS DADOS FORAM GRAVADOS.");
+      const confirmation = await checkStatusViaJsonp(submissionId, 30000);
+      
+      if (!confirmation || confirmation.confirmed !== true) {
+        throw new Error("O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
       }
 
       let photoSaved = false;
@@ -552,7 +609,13 @@
         const optimized = await compressImage(original, 1600, 0.72);
         if (optimized.size > 4 * 1024 * 1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
         const dataUrl = await blobToDataUrl(optimized);
-        await postNative({ action: "photo", submissionId: submissionId, photoQuestion: photoField._photoTitle || "Foto da Entrada ou Saída", mimeType: "image/jpeg", photoData: dataUrl }, 60000);
+        await postNative({ 
+          action: "photo", 
+          submissionId: submissionId, 
+          photoQuestion: photoField._photoTitle || "Foto da Entrada ou Saída", 
+          mimeType: "image/jpeg", 
+          photoData: dataUrl 
+        }, 60000);
         photoSaved = true;
       }
 
@@ -568,57 +631,28 @@
     }
   }
 
-  function jsonpRequest(url, params, timeoutMs) {
-    return new Promise((resolve, reject) => {
-      const cb = "__kerigma_jsonp_" + Date.now() + "_" + Math.random().toString(36).slice(2);
-      const script = document.createElement("script");
-      let done = false;
-      const finish = (err, value) => {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        try { delete window[cb]; } catch (_) {}
-        script.remove();
-        err ? reject(err) : resolve(value);
-      };
-      window[cb] = data => finish(null, data);
-      script.onerror = () => finish(new Error("NÃO FOI POSSÍVEL CONECTAR AO APPS SCRIPT."));
-      const query = Object.keys(params).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(String(params[k] ?? ""))).join("&");
-      const timer = setTimeout(() => finish(new Error("TEMPO ESGOTADO AO AGUARDAR O APPS SCRIPT.")), timeoutMs);
-      script.src = url + (url.includes("?") ? "&" : "?") + query + "&callback=" + encodeURIComponent(cb);
-      document.body.appendChild(script);
-    });
-  }
-
-  async function waitForStatus(url, id, timeoutMs = 30000) {
-    const started = Date.now();
-    while (Date.now() - started < timeoutMs) {
-      const ok = await jsonpStatus(url, id);
-      if (ok) return true;
-      await new Promise(resolve => setTimeout(resolve, 1200));
-    }
-    return false;
-  }
-
   function jsonpStatus(url, id) {
-    return new Promise(resolve => {
-      const cb = "__kerigma_status_" + Date.now();
+    return new Promise((resolve, reject) => {
+      const cb = "__kerigma_status_" + Date.now() + "_" + Math.random().toString(36).slice(2);
       const script = document.createElement("script");
       let done = false;
 
-      const finish = value => {
+      const finish = (value) => {
         if (done) return;
         done = true;
         clearTimeout(timer);
         try { delete window[cb]; } catch (_) {}
         script.remove();
-        resolve(!!value);
+        resolve(value);
       };
 
-      window[cb] = data => finish(data && data.success);
-      script.onerror = () => finish(false);
+      window[cb] = (data) => {
+        finish(data && data.success === true ? data : null);
+      };
 
-      const timer = setTimeout(() => finish(false), 8000);
+      script.onerror = () => finish(null);
+
+      const timer = setTimeout(() => finish(null), 10000);
       script.src = url + (url.includes("?") ? "&" : "?") +
         "action=status&id=" + encodeURIComponent(id) +
         "&callback=" + encodeURIComponent(cb);

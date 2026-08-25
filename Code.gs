@@ -21,7 +21,8 @@ function doGet(e) {
     if (action === 'form') {
       result = { success: true, app: 'Kerigma', formTitle: FormApp.openById(CONFIG.FORM_ID).getTitle(), questions: getFormQuestions_() };
     } else if (action === 'save') {
-      result = saveFromGet_(p);
+      // Para compatibilidade com GET (usado em testes)
+      result = saveFromPost_({ parameter: p });
     } else if (action === 'status') {
       result = getStatus_(String(p.id || '').trim());
     } else {
@@ -42,9 +43,10 @@ function doPost(e) {
       return handlePhoto_(p);
     }
 
-    // O APP ENVIA OS DADOS PRINCIPAIS POR POST.
-    // A CONFIRMAÇÃO É FEITA DEPOIS PELO action=status.
+    // Salva os dados principais via POST
     const result = saveFromPost_(e);
+    
+    // Retorna JSON para o fetch (modo no-cors)
     return json_(result);
 
   } catch (err) {
@@ -102,7 +104,6 @@ function saveFromPost_(e) {
   sheet.getRange(nextRow, 1, 1, row.length).setValues([row]);
   SpreadsheetApp.flush();
 
-  // CONFIRMA SOMENTE DEPOIS DE A PLANILHA TER RECEBIDO A LINHA.
   props.setProperty('row_' + submissionId, String(nextRow));
   props.setProperty('status_' + submissionId, 'OK');
 
@@ -116,16 +117,17 @@ function saveFromPost_(e) {
   };
 }
 
-function saveFromGet_(p) {
-  // MANTIDO PARA COMPATIBILIDADE COM TESTES ANTIGOS.
-  const fakeEvent = { parameter: p };
-  return saveFromPost_(fakeEvent);
-}
-
 function getStatus_(id) {
   if (!id) return { success: false, confirmed: false, error: 'ID NÃO INFORMADO.' };
   const row = PropertiesService.getScriptProperties().getProperty('row_' + id);
-  return { success: !!row, confirmed: !!row, submissionId: id, row: row ? Number(row) : null };
+  const status = PropertiesService.getScriptProperties().getProperty('status_' + id);
+  return { 
+    success: !!row, 
+    confirmed: !!row, 
+    submissionId: id, 
+    row: row ? Number(row) : null,
+    status: status || 'PENDING'
+  };
 }
 
 function handlePhoto_(p) {
@@ -163,6 +165,10 @@ function handlePhoto_(p) {
 
   sheet.getRange(row, col + 1).setValue(file.getUrl());
   SpreadsheetApp.flush();
+  
+  // Atualiza o status para incluir a foto
+  PropertiesService.getScriptProperties().setProperty('status_' + submissionId, 'OK_WITH_PHOTO');
+  
   return json_({ success: true, confirmed: true, photoSaved: true, url: file.getUrl(), row: row });
 }
 
