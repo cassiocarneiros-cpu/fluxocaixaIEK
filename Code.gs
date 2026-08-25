@@ -78,6 +78,9 @@ function doPost(e) {
       raw = e.parameter.payload;
     } else if (e && e.postData && e.postData.contents) {
       raw = e.postData.contents;
+      if (raw.indexOf('payload=') === 0) {
+        raw = decodeURIComponent(raw.substring(8).replace(/\+/g, ' '));
+      }
     }
 
     if (!raw) {
@@ -124,9 +127,12 @@ function doPost(e) {
       return findAnswerUpper_(answers, header);
     });
 
+    Logger.log('INICIANDO GRAVAÇÃO NA PLANILHA: ' + sheet.getName());
+    Logger.log('DADOS RECEBIDOS: ' + JSON.stringify(row));
     sheet.appendRow(row);
     SpreadsheetApp.flush();
     const savedRow = sheet.getLastRow();
+    Logger.log('LINHA GRAVADA: ' + savedRow);
 
     // ============================================================
     // 2) FOTO DEPOIS. SE FALHAR, O LANÇAMENTO CONTINUA SALVO.

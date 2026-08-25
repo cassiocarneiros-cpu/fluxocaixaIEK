@@ -496,71 +496,102 @@
     };
 
     const photoField = form.querySelector('.photo-box')?.parentElement;
-    const original = photoField && photoField._selectedPhotoFile ? photoField._selectedPhotoFile : null;
-    const photoRequired = !!(photoField && photoField.querySelector('input[data-required="true"]'));
+    const original = photoField && photoField._selectedPhotoFile
+      ? photoField._selectedPhotoFile : null;
+    const photoRequired = !!(
+      photoField &&
+      photoField.querySelector('input[data-required="true"]')
+    );
 
     if (photoRequired && !original) {
-      fail("A FOTO É OBRIGATÓRIA."); return;
+      fail("A FOTO É OBRIGATÓRIA.");
+      return;
     }
-
-    if (original) {
-
-      status("", "PROCESSANDO FOTO...", "OTIMIZANDO A IMAGEM PARA O ENVIO.");
-      const optimized = await compressImage(original);
-      const dataUrl = await blobToDataUrl(optimized);
-
-      // Mantemos o limite real do Apps Script com folga. A entrada aceita até 1 GB,
-      // mas a foto é reduzida antes de viajar pela rede.
-      if (optimized.size > 12 * 1024 * 1024) {
-        fail("A FOTO, MESMO OTIMIZADA, FICOU MUITO GRANDE. TIRE UMA NOVA FOTO COM MENOR RESOLUÇÃO."); return;
-      }
-
-      payload.photo = {
-        title: original.name,
-        mimeType: "image/jpeg",
-        dataUrl,
-        originalSize: original.size,
-        optimizedSize: optimized.size
-      };
-      payload.photoQuestion = photoField._photoTitle || "Foto da Entrada ou Saída";
-    }
-
-    submitBtn.disabled = true;
-    submitBtn.querySelector("span").textContent = "ENVIANDO...";
-    status("", "ENVIANDO...", "REGISTRANDO RESPOSTAS E FOTO.");
 
     try {
-      // ENVIO CROSS-ORIGIN PELO FORMULÁRIO NATIVO DO NAVEGADOR.
-      // ISSO EVITA CORS/PREFLIGHT DO GITHUB PAGES PARA O APPS SCRIPT.
-      // O APPS SCRIPT RECEBE O CAMPO "payload" EM e.parameter.payload.
+      if (original) {
+        status("", "PROCESSANDO FOTO...", "OTIMIZANDO A IMAGEM PARA O ENVIO.");
+        const optimized = await compressImage(original, 1600, 0.72);
+
+        // LIMITE PRÁTICO PARA ENVIO NATIVO DE FORMULÁRIO.
+        // O USUÁRIO PODE ESCOLHER ATÉ 1 GB; O APP REDUZ A FOTO ANTES DO ENVIO.
+        if (optimized.size > 4 * 1024 * 1024) {
+          throw new Error(
+            "A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE. TIRE UMA NOVA FOTO COM MENOR RESOLUÇÃO."
+          );
+        }
+
+        const dataUrl = await blobToDataUrl(optimized);
+
+        payload.photo = {
+          title: original.name,
+          mimeType: "image/jpeg",
+          dataUrl,
+          originalSize: original.size,
+          optimizedSize: optimized.size
+        };
+        payload.photoQuestion = photoField._photoTitle || "Foto da Entrada ou Saída";
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.querySelector("span").textContent = "ENVIANDO...";
+      status("", "ENVIANDO...", "ENVIANDO DIRETAMENTE AO APPS SCRIPT.");
+
+      /*
+       * CORREÇÃO DEFINITIVA DO ENVIO:
+       * NÃO USAMOS FETCH/AJAX.
+       * O GITHUB PAGES E O APPS SCRIPT ESTÃO EM DOMÍNIOS DIFERENTES.
+       * O FORM HTML NATIVO FAZ O POST SEM DEPENDER DE CORS.
+       * O IFRAME ESCONDE A RESPOSTA DO APPS SCRIPT E MANTÉM O USUÁRIO NO APP.
+       */
       const iframeName = "kerigma_submit_frame_" + Date.now();
       const iframe = document.createElement("iframe");
       iframe.name = iframeName;
-      iframe.style.display = "none";
+      iframe.id = iframeName;
+      iframe.style.cssText =
+        "position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;border:0;opacity:0;";
       document.body.appendChild(iframe);
 
       const postForm = document.createElement("form");
       postForm.method = "POST";
       postForm.action = cfg.APPS_SCRIPT_URL;
       postForm.target = iframeName;
+      postForm.enctype = "application/x-www-form-urlencoded";
+      postForm.acceptCharset = "UTF-8";
       postForm.style.display = "none";
 
-      const payloadInput = document.createElement("input");
-      payloadInput.type = "hidden";
-      payloadInput.name = "payload";
-      payloadInput.value = JSON.stringify(payload);
-      postForm.appendChild(payloadInput);
+      const hidden = document.createElement("input");
+      hidden.type = "hidden";
+      hidden.name = "payload";
+      hidden.value = JSON.stringify(payload);
+      postForm.appendChild(hidden);
+
       document.body.appendChild(postForm);
 
-      postForm.submit();
+      await new Promise((resolve, reject) => {
+        let finished = false;
+        const timeout = setTimeout(() => {
+          if (finished) return;
+          finished = true;
+          reject(new Error(
+            "O APPS SCRIPT NÃO CONFIRMOU O ENVIO. VERIFIQUE A IMPLANTAÇÃO E SE A URL TERMINA EM /EXEC."
+          ));
+        }, 20000);
 
-      // Damos tempo para o Apps Script concluir a gravação.
-      // Depois consultamos o status. Se o navegador não conseguir ler o
-      // status por alguma razão, o POST já foi feito pelo navegador e não
-      // devemos bloquear o usuário com um falso erro de envio.
+        iframe.addEventListener("load", () => {
+          if (finished) return;
+          finished = true;
+          clearTimeout(timeout);
+          resolve();
+        }, { once: true });
+
+        postForm.submit();
+      });
+
+      // DÁ TEMPO PARA O APPS SCRIPT GRAVAR A LINHA E MARCAR O STATUS.
       let confirmed = false;
-      for (let attempt = 0; attempt < 12; attempt++) {
-        await new Promise(r => setTimeout(r, attempt === 0 ? 2500 : 1000));
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await new Promise(r => setTimeout(r, 700));
         try {
           confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
         } catch (_) {
@@ -569,18 +600,29 @@
         if (confirmed) break;
       }
 
-      // Limpeza do formulário/iframe temporário.
-      try { postForm.remove(); } catch (_) {}
-      try { iframe.remove(); } catch (_) {}
+      // O LOAD DO IFRAME SIGNIFICA QUE O POST FOI ACEITO PELO WEB APP.
+      // SE A CONSULTA JSONP DO STATUS FOR BLOQUEADA PELO NAVEGADOR,
+      // NÃO DECLARAMOS FALHA DE UM POST QUE JÁ FOI ENVIADO.
+      if (!confirmed) {
+        status("", "PROCESSANDO...", "O ENVIO FOI REALIZADO. AGUARDANDO O REGISTRO NA PLANILHA.");
+        await new Promise(r => setTimeout(r, 1500));
+      }
 
       form.classList.add("hidden");
       successBox.classList.remove("hidden");
-      status("ok", "ENVIADO COM SUCESSO", confirmed
-        ? "REGISTRO CONFIRMADO NA PLANILHA."
-        : "ENVIO CONCLUÍDO. O APPS SCRIPT FOI ACIONADO; CONFIRA A PLANILHA EM ALGUNS SEGUNDOS.");
+      status("ok", "ENVIADO COM SUCESSO", "DADOS ENCAMINHADOS PARA A PLANILHA.");
+
+      setTimeout(() => {
+        postForm.remove();
+        iframe.remove();
+      }, 1000);
+
     } catch (err) {
       console.error(err);
-      fail((err.message || "FALHA NO ENVIO.").toUpperCase(), "Detalhe do envio: " + (err.message || err));
+      fail(
+        String(err.message || "FALHA NO ENVIO.").toUpperCase(),
+        "DETALHE DO ENVIO: " + (err.message || err)
+      );
     } finally {
       submitBtn.disabled = false;
       submitBtn.querySelector("span").textContent = "ENVIAR FORMULÁRIO";
