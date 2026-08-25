@@ -84,28 +84,43 @@
     const box = document.createElement("div");
     box.className = "photo-box";
 
-    const input = document.createElement("input");
-    input.className = "photo-input";
-    input.type = "file";
-    input.accept = "image/*";
-    input.capture = "environment";
-    input.name = "q_" + q.index;
-    input.dataset.title = q.title;
-    input.dataset.photo = "true";
-    input.dataset.required = q.required ? "true" : "false";
+    // DOIS INPUTS NATIVOS: UM PARA CÂMERA E OUTRO PARA ARQUIVO/GALERIA.
+    // ISSO EVITA DEPENDER DO COMPORTAMENTO VARIÁVEL DE capture=...
+    const cameraInput = document.createElement("input");
+    cameraInput.className = "photo-input-native";
+    cameraInput.type = "file";
+    cameraInput.accept = "image/*";
+    cameraInput.capture = "environment";
+    cameraInput.name = "photo_camera_" + q.index;
+    cameraInput.dataset.title = q.title;
+    cameraInput.dataset.photo = "true";
+    cameraInput.dataset.source = "camera";
+    cameraInput.dataset.required = q.required ? "true" : "false";
 
-    const labelBtn = document.createElement("label");
-    labelBtn.className = "photo-label";
-    labelBtn.setAttribute("for", input.name);
-    labelBtn.innerHTML = "📷 TIRAR OU ESCOLHER FOTO";
+    const fileInput = document.createElement("input");
+    fileInput.className = "photo-input-native";
+    fileInput.type = "file";
+    fileInput.accept = "image/*";
+    fileInput.name = "photo_file_" + q.index;
+    fileInput.dataset.title = q.title;
+    fileInput.dataset.photo = "true";
+    fileInput.dataset.source = "file";
+    fileInput.dataset.required = q.required ? "true" : "false";
+
+    const choose = document.createElement("button");
+    choose.type = "button";
+    choose.className = "photo-label";
+    choose.textContent = "📷 FOTO — CÂMERA OU ARQUIVO";
+    choose.addEventListener("click", () => {
+      openPhotoChooser(cameraInput, fileInput);
+    });
 
     const info = document.createElement("div");
     info.className = "photo-info";
-    info.textContent = "PERMITIDO: IMAGENS DE ATÉ 1 GB. A FOTO SERÁ OTIMIZADA AUTOMATICAMENTE PARA O ENVIO.";
+    info.textContent = "TOQUE NO BOTÃO E ESCOLHA: CÂMERA DO CELULAR OU ARQUIVO/GALERIA.";
 
     const preview = document.createElement("div");
     preview.className = "photo-preview";
-
     const img = document.createElement("img");
     img.alt = "PRÉVIA DA FOTO";
     preview.appendChild(img);
@@ -115,44 +130,78 @@
     remove.className = "photo-remove";
     remove.textContent = "REMOVER FOTO";
 
-    const progress = document.createElement("div");
-    progress.className = "upload-progress";
-    const bar = document.createElement("span");
-    progress.appendChild(bar);
-
-    input.addEventListener("change", () => {
-      const file = input.files && input.files[0];
+    function handleFile(file) {
       if (!file) return;
-
       const max = 1024 * 1024 * 1024;
       if (file.size > max) {
-        input.value = "";
+        cameraInput.value = "";
+        fileInput.value = "";
         alert("A FOTO NÃO PODE ULTRAPASSAR 1 GB.");
         return;
       }
-
-      if (!file.type.startsWith("image/")) {
-        input.value = "";
+      if (!file.type || !file.type.startsWith("image/")) {
+        cameraInput.value = "";
+        fileInput.value = "";
         alert("SELECIONE UMA IMAGEM.");
         return;
       }
-
+      // Mantém a foto escolhida em ambos os inputs através de uma propriedade comum.
+      wrap._selectedPhotoFile = file;
+      wrap._photoTitle = q.title;
       img.src = URL.createObjectURL(file);
       preview.style.display = "block";
       remove.style.display = "inline-block";
       info.textContent = "FOTO SELECIONADA: " + file.name + " — " + formatBytes(file.size);
-    });
+    }
+
+    cameraInput.addEventListener("change", () => handleFile(cameraInput.files && cameraInput.files[0]));
+    fileInput.addEventListener("change", () => handleFile(fileInput.files && fileInput.files[0]));
 
     remove.addEventListener("click", () => {
-      input.value = "";
+      cameraInput.value = "";
+      fileInput.value = "";
+      wrap._selectedPhotoFile = null;
       preview.style.display = "none";
       remove.style.display = "none";
-      info.textContent = "PERMITIDO: IMAGENS DE ATÉ 1 GB. A FOTO SERÁ OTIMIZADA AUTOMATICAMENTE PARA O ENVIO.";
+      info.textContent = "TOQUE NO BOTÃO E ESCOLHA: CÂMERA DO CELULAR OU ARQUIVO/GALERIA.";
     });
 
-    box.append(input, labelBtn, info, preview, remove, progress);
+    box.append(cameraInput, fileInput, choose, info, preview, remove);
+    wrap._photoCameraInput = cameraInput;
+    wrap._photoFileInput = fileInput;
+    wrap._selectedPhotoFile = null;
+    wrap._photoTitle = q.title;
     wrap.appendChild(box);
     return wrap;
+  }
+
+  function openPhotoChooser(cameraInput, fileInput) {
+    // Modal explícito: no celular o usuário escolhe a origem da foto.
+    const modal = document.createElement("div");
+    modal.className = "photo-choice-modal";
+    modal.innerHTML = `
+      <div class="photo-choice-card">
+        <div class="photo-choice-title">📷 FOTO DA ENTRADA OU SAÍDA</div>
+        <div class="photo-choice-subtitle">ESCOLHA DE ONDE VAI PEGAR A FOTO:</div>
+        <button type="button" class="photo-choice-btn camera">📸 ABRIR CÂMERA</button>
+        <button type="button" class="photo-choice-btn file">🖼️ ESCOLHER ARQUIVO / GALERIA</button>
+        <button type="button" class="photo-choice-cancel">CANCELAR</button>
+      </div>`;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector(".camera").addEventListener("click", () => {
+      modal.remove();
+      cameraInput.click();
+    });
+    modal.querySelector(".file").addEventListener("click", () => {
+      modal.remove();
+      fileInput.click();
+    });
+    modal.querySelector(".photo-choice-cancel").addEventListener("click", () => modal.remove());
+    modal.addEventListener("click", e => {
+      if (e.target === modal) modal.remove();
+    });
   }
 
   function formatBytes(bytes) {
@@ -303,6 +352,19 @@
     return addField(q, control);
   }
 
+  function forceUppercaseInputs() {
+    questionsBox.addEventListener("input", event => {
+      const el = event.target;
+      if (!el || el.type === "file") return;
+      if (el.matches("input[type=text], textarea")) {
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        el.value = el.value.toUpperCase();
+        try { el.setSelectionRange(start, end); } catch (_) {}
+      }
+    });
+  }
+
   function render(data) {
     if (!data || data.success === false) {
       throw new Error(data?.error || "O Apps Script retornou uma resposta inválida.");
@@ -405,8 +467,13 @@
     return answers;
   }
 
-  function getPhotoInput() {
-    return form.querySelector('input[data-photo="true"]');
+  function getPhotoContainer() {
+    return form.querySelector('.field .photo-box')?.parentElement || null;
+  }
+
+  function getSelectedPhotoFile() {
+    const field = form.querySelector('.photo-box')?.parentElement;
+    return field && field._selectedPhotoFile ? field._selectedPhotoFile : null;
   }
 
 
@@ -428,13 +495,15 @@
       answers: collect()
     };
 
-    const photoInput = getPhotoInput();
-    if (photoInput && photoInput.required && (!photoInput.files || !photoInput.files.length)) {
+    const photoField = form.querySelector('.photo-box')?.parentElement;
+    const original = photoField && photoField._selectedPhotoFile ? photoField._selectedPhotoFile : null;
+    const photoRequired = !!(photoField && photoField.querySelector('input[data-required="true"]'));
+
+    if (photoRequired && !original) {
       fail("A FOTO É OBRIGATÓRIA."); return;
     }
 
-    if (photoInput && photoInput.files && photoInput.files.length) {
-      const original = photoInput.files[0];
+    if (original) {
 
       status("", "PROCESSANDO FOTO...", "OTIMIZANDO A IMAGEM PARA O ENVIO.");
       const optimized = await compressImage(original);
@@ -453,7 +522,7 @@
         originalSize: original.size,
         optimizedSize: optimized.size
       };
-      payload.photoQuestion = photoInput.dataset.title;
+      payload.photoQuestion = photoField._photoTitle || "Foto da Entrada ou Saída";
     }
 
     submitBtn.disabled = true;
@@ -522,6 +591,8 @@
       document.body.appendChild(script);
     });
   }
+
+  forceUppercaseInputs();
 
   retryBtn.addEventListener("click", loadQuestions);
   form.addEventListener("submit", submit);
