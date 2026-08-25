@@ -538,14 +538,12 @@
         fields["answer_" + q.index] = String(value).toUpperCase();
       });
 
-      // ENVIA OS DADOS POR POST. O RETORNO DO POST NÃO É USADO,
-      // POIS O NAVEGADOR PODE BLOQUEAR A LEITURA CROSS-ORIGIN.
-      // DEPOIS CONSULTAMOS O STATUS POR JSONP ATÉ A LINHA EXISTIR.
-      await postNative(fields, 30000);
-
-      const confirmed = await waitForStatus(cfg.APPS_SCRIPT_URL, submissionId, 30000);
-      if (!confirmed) {
-        throw new Error("O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
+      // ENVIA OS DADOS PRINCIPAIS POR GET/JSONP.
+      // O APPS SCRIPT RETORNA A CONFIRMAÇÃO DA LINHA GRAVADA.
+      // ISSO EVITA A LIMITAÇÃO DE LEITURA CROSS-ORIGIN DO POST EM IFRAME.
+      const saveResult = await jsonpRequest(cfg.APPS_SCRIPT_URL, fields, 30000);
+      if (!saveResult || saveResult.success !== true || saveResult.confirmed !== true) {
+        throw new Error((saveResult && saveResult.error) || "O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
       }
 
       let photoSaved = false;

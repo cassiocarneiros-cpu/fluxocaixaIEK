@@ -16,3 +16,7 @@ Os dados agora são enviados por GET + JSONP para o Apps Script. Isso permite qu
 
 ## Teste
 Primeiro teste sem foto. Depois teste a foto.
+
+
+## V5.4 — CORREÇÃO DO ENVIO
+O envio dos dados principais usa GET/JSONP para receber a confirmação diretamente do Apps Script. O Apps Script precisa estar implantado como Web App com acesso para Qualquer pessoa. A foto continua sendo enviada separadamente por POST após a confirmação da linha.
