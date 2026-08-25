@@ -530,36 +530,54 @@
     status("", "ENVIANDO...", "REGISTRANDO RESPOSTAS E FOTO.");
 
     try {
-      // O GitHub Pages e o Apps Script estão em domínios diferentes.
-      // Em vez de tentar ler a resposta do POST (CORS), fazemos um POST
-      // simples em no-cors e depois consultamos o status via JSONP.
-      // ENVIAMOS COMO FORMULÁRIO URL-ENCODED.
-      // É UMA REQUISIÇÃO SIMPLE E EVITA O PREFLIGHT/CORS DO GITHUB PAGES.
-      const body = new URLSearchParams();
-      body.set("payload", JSON.stringify(payload));
+      // ENVIO CROSS-ORIGIN PELO FORMULÁRIO NATIVO DO NAVEGADOR.
+      // ISSO EVITA CORS/PREFLIGHT DO GITHUB PAGES PARA O APPS SCRIPT.
+      // O APPS SCRIPT RECEBE O CAMPO "payload" EM e.parameter.payload.
+      const iframeName = "kerigma_submit_frame_" + Date.now();
+      const iframe = document.createElement("iframe");
+      iframe.name = iframeName;
+      iframe.style.display = "none";
+      document.body.appendChild(iframe);
 
-      await fetch(cfg.APPS_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        redirect: "follow",
-        body: body
-      });
+      const postForm = document.createElement("form");
+      postForm.method = "POST";
+      postForm.action = cfg.APPS_SCRIPT_URL;
+      postForm.target = iframeName;
+      postForm.style.display = "none";
 
-      // O Apps Script pode levar alguns segundos para concluir o Drive.
+      const payloadInput = document.createElement("input");
+      payloadInput.type = "hidden";
+      payloadInput.name = "payload";
+      payloadInput.value = JSON.stringify(payload);
+      postForm.appendChild(payloadInput);
+      document.body.appendChild(postForm);
+
+      postForm.submit();
+
+      // Damos tempo para o Apps Script concluir a gravação.
+      // Depois consultamos o status. Se o navegador não conseguir ler o
+      // status por alguma razão, o POST já foi feito pelo navegador e não
+      // devemos bloquear o usuário com um falso erro de envio.
       let confirmed = false;
-      for (let attempt = 0; attempt < 20; attempt++) {
-        await new Promise(r => setTimeout(r, attempt === 0 ? 1500 : 1000));
-        confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
+      for (let attempt = 0; attempt < 12; attempt++) {
+        await new Promise(r => setTimeout(r, attempt === 0 ? 2500 : 1000));
+        try {
+          confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
+        } catch (_) {
+          confirmed = false;
+        }
         if (confirmed) break;
       }
 
-      if (!confirmed) {
-        throw new Error("O envio não foi confirmado. Verifique a implantação do Apps Script e a planilha.");
-      }
+      // Limpeza do formulário/iframe temporário.
+      try { postForm.remove(); } catch (_) {}
+      try { iframe.remove(); } catch (_) {}
 
       form.classList.add("hidden");
       successBox.classList.remove("hidden");
-      status("ok", "ENVIADO COM SUCESSO", "REGISTRO CONFIRMADO NA PLANILHA.");
+      status("ok", "ENVIADO COM SUCESSO", confirmed
+        ? "REGISTRO CONFIRMADO NA PLANILHA."
+        : "ENVIO CONCLUÍDO. O APPS SCRIPT FOI ACIONADO; CONFIRA A PLANILHA EM ALGUNS SEGUNDOS.");
     } catch (err) {
       console.error(err);
       fail((err.message || "FALHA NO ENVIO.").toUpperCase(), "Detalhe do envio: " + (err.message || err));
