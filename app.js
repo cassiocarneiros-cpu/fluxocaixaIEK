@@ -399,7 +399,7 @@
       window[cb] = data => finish(null, data);
 
       script.onerror = () => finish(new Error(
-        "O navegador não conseguiu acessar o Apps Script. Normalmente isso ocorre quando a implantação não está como “Qualquer pessoa” ou a URL /exec está incorreta."
+        "O navegador não conseguiu acessar o Apps Script. Normalmente isso ocorre quando a implantação não está como "Qualquer pessoa" ou a URL /exec está incorreta."
       ));
 
       const timer = setTimeout(() => finish(new Error(
@@ -506,7 +506,6 @@
     });
   }
 
-  // Função para enviar dados via POST com fetch (mais confiável que iframe)
   async function postFetch(url, data, timeoutMs = 30000) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -528,13 +527,10 @@
         },
         body: formData.toString(),
         signal: controller.signal,
-        mode: 'no-cors' // Importante para CORS com Apps Script
+        mode: 'no-cors'
       });
 
       clearTimeout(timeout);
-      
-      // Com no-cors, não podemos ler a resposta diretamente
-      // Vamos usar o método de status via JSONP para confirmar
       return true;
     } catch (err) {
       clearTimeout(timeout);
@@ -545,7 +541,6 @@
     }
   }
 
-  // Função para verificar status via JSONP
   async function checkStatusViaJsonp(submissionId, timeoutMs = 30000) {
     const started = Date.now();
     while (Date.now() - started < timeoutMs) {
@@ -579,7 +574,6 @@
       submitBtn.querySelector("span").textContent = "ENVIANDO...";
       status("", "SALVANDO...", "GRAVANDO AS RESPOSTAS NA PLANILHA.");
 
-      // Prepara os dados para enviar via POST
       const fields = { 
         action: "save", 
         submissionId: submissionId, 
@@ -592,10 +586,8 @@
         fields["answer_" + q.index] = String(value).toUpperCase();
       });
 
-      // Envia via POST com fetch (no-cors)
       await postFetch(cfg.APPS_SCRIPT_URL, fields, 30000);
 
-      // Aguarda a confirmação via JSONP
       status("", "AGUARDANDO CONFIRMAÇÃO...", "VERIFICANDO SE OS DADOS FORAM GRAVADOS.");
       const confirmation = await checkStatusViaJsonp(submissionId, 30000);
       

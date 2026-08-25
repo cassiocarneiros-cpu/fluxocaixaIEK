@@ -1,13 +1,23 @@
 {
-  "name":"Igreja Evangélica Kerigma — Formulário",
-  "short_name":"Kerigma",
-  "start_url":"./",
-  "display":"standalone",
-  "background_color":"#F7F4E8",
-  "theme_color":"#102B25",
-  "lang":"pt-BR",
-  "icons":[
-    {"src":"igreja_kerigma_v3.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
-    {"src":"igreja_kerigma_v3.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  "name": "Igreja Evangélica Kerigma — Fluxo de Caixa da IEK",
+  "short_name": "Kerigma",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F7F4E8",
+  "theme_color": "#102B25",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "igreja_kerigma_v3.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "igreja_kerigma_v3.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
