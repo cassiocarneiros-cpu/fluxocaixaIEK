@@ -371,6 +371,7 @@
     }
 
     const qs = data.questions || [];
+    window.__kerigmaQuestions = qs;
     questionsBox.innerHTML = "";
 
     qs.forEach(q => questionsBox.appendChild(buildQuestion(q)));
@@ -477,155 +478,103 @@
   }
 
 
+  function postNative(fields, timeoutMs = 30000) {
+    return new Promise((resolve, reject) => {
+      const iframeName = "kerigma_submit_frame_" + Date.now() + "_" + Math.random().toString(36).slice(2);
+      const iframe = document.createElement("iframe");
+      iframe.name = iframeName;
+      iframe.style.cssText = "position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;border:0;opacity:0;";
+      document.body.appendChild(iframe);
+
+      const f = document.createElement("form");
+      f.method = "POST";
+      f.action = cfg.APPS_SCRIPT_URL;
+      f.target = iframeName;
+      f.enctype = "application/x-www-form-urlencoded";
+      f.acceptCharset = "UTF-8";
+      f.style.display = "none";
+
+      Object.entries(fields).forEach(([name, value]) => {
+        if (Array.isArray(value)) {
+          value.forEach(v => {
+            const input=document.createElement("input"); input.type="hidden"; input.name=name; input.value=String(v); f.appendChild(input);
+          });
+        } else {
+          const input=document.createElement("input"); input.type="hidden"; input.name=name; input.value=String(value ?? ""); f.appendChild(input);
+        }
+      });
+      document.body.appendChild(f);
+
+      let done=false;
+      const finish=(err)=>{ if(done)return; done=true; clearTimeout(timer); iframe.remove(); f.remove(); err?reject(err):resolve(true); };
+      const timer=setTimeout(()=>finish(new Error("TEMPO ESGOTADO AO ENVIAR AO APPS SCRIPT.")),timeoutMs);
+      iframe.addEventListener("load",()=>finish(null),{once:true});
+      f.submit();
+    });
+  }
+
   async function submit(e) {
     e.preventDefault();
     clearError();
+    if (!form.checkValidity()) { form.reportValidity(); return; }
 
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
-
-    const submissionId = "KRG-" + Date.now() + "-" +
-      Math.random().toString(36).slice(2, 8).toUpperCase();
-
-    const payload = {
-      submissionId,
-      submittedAt: new Date().toISOString(),
-      answers: collect()
-    };
-
+    const submissionId = "KRG-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    const answers = collect();
     const photoField = form.querySelector('.photo-box')?.parentElement;
-    const original = photoField && photoField._selectedPhotoFile
-      ? photoField._selectedPhotoFile : null;
-    const photoRequired = !!(
-      photoField &&
-      photoField.querySelector('input[data-required="true"]')
-    );
-
-    if (photoRequired && !original) {
-      fail("A FOTO É OBRIGATÓRIA.");
-      return;
-    }
+    const original = photoField && photoField._selectedPhotoFile ? photoField._selectedPhotoFile : null;
+    const photoRequired = !!(photoField && photoField.querySelector('input[data-required="true"]'));
+    if (photoRequired && !original) { fail("A FOTO É OBRIGATÓRIA."); return; }
 
     try {
-      if (original) {
-        status("", "PROCESSANDO FOTO...", "OTIMIZANDO A IMAGEM PARA O ENVIO.");
-        const optimized = await compressImage(original, 1600, 0.72);
+      submitBtn.disabled=true;
+      submitBtn.querySelector("span").textContent="ENVIANDO...";
+      status("", "SALVANDO...", "GRAVANDO AS RESPOSTAS NA PLANILHA.");
 
-        // LIMITE PRÁTICO PARA ENVIO NATIVO DE FORMULÁRIO.
-        // O USUÁRIO PODE ESCOLHER ATÉ 1 GB; O APP REDUZ A FOTO ANTES DO ENVIO.
-        if (optimized.size > 4 * 1024 * 1024) {
-          throw new Error(
-            "A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE. TIRE UMA NOVA FOTO COM MENOR RESOLUÇÃO."
-          );
-        }
-
-        const dataUrl = await blobToDataUrl(optimized);
-
-        payload.photo = {
-          title: original.name,
-          mimeType: "image/jpeg",
-          dataUrl,
-          originalSize: original.size,
-          optimizedSize: optimized.size
-        };
-        payload.photoQuestion = photoField._photoTitle || "Foto da Entrada ou Saída";
-      }
-
-      submitBtn.disabled = true;
-      submitBtn.querySelector("span").textContent = "ENVIANDO...";
-      status("", "ENVIANDO...", "ENVIANDO DIRETAMENTE AO APPS SCRIPT.");
-
-      /*
-       * CORREÇÃO DEFINITIVA DO ENVIO:
-       * NÃO USAMOS FETCH/AJAX.
-       * O GITHUB PAGES E O APPS SCRIPT ESTÃO EM DOMÍNIOS DIFERENTES.
-       * O FORM HTML NATIVO FAZ O POST SEM DEPENDER DE CORS.
-       * O IFRAME ESCONDE A RESPOSTA DO APPS SCRIPT E MANTÉM O USUÁRIO NO APP.
-       */
-      const iframeName = "kerigma_submit_frame_" + Date.now();
-      const iframe = document.createElement("iframe");
-      iframe.name = iframeName;
-      iframe.id = iframeName;
-      iframe.style.cssText =
-        "position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;border:0;opacity:0;";
-      document.body.appendChild(iframe);
-
-      const postForm = document.createElement("form");
-      postForm.method = "POST";
-      postForm.action = cfg.APPS_SCRIPT_URL;
-      postForm.target = iframeName;
-      postForm.enctype = "application/x-www-form-urlencoded";
-      postForm.acceptCharset = "UTF-8";
-      postForm.style.display = "none";
-
-      const hidden = document.createElement("input");
-      hidden.type = "hidden";
-      hidden.name = "payload";
-      hidden.value = JSON.stringify(payload);
-      postForm.appendChild(hidden);
-
-      document.body.appendChild(postForm);
-
-      await new Promise((resolve, reject) => {
-        let finished = false;
-        const timeout = setTimeout(() => {
-          if (finished) return;
-          finished = true;
-          reject(new Error(
-            "O APPS SCRIPT NÃO CONFIRMOU O ENVIO. VERIFIQUE A IMPLANTAÇÃO E SE A URL TERMINA EM /EXEC."
-          ));
-        }, 20000);
-
-        iframe.addEventListener("load", () => {
-          if (finished) return;
-          finished = true;
-          clearTimeout(timeout);
-          resolve();
-        }, { once: true });
-
-        postForm.submit();
+      // PRIMEIRO POST: SOMENTE OS DADOS. NÃO ENVIA FOTO JUNTO.
+      const fields={action:"save",submissionId:submissionId,submittedAt:new Date().toISOString()};
+      const qs = (window.__kerigmaQuestions || []);
+      qs.forEach(q=>{
+        let value=answers[q.title];
+        if(value===undefined) value="";
+        fields["answer_"+q.index]=String(value).toUpperCase();
       });
+      await postNative(fields,30000);
 
-      // DÁ TEMPO PARA O APPS SCRIPT GRAVAR A LINHA E MARCAR O STATUS.
-      let confirmed = false;
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await new Promise(r => setTimeout(r, 700));
-        try {
-          confirmed = await jsonpStatus(cfg.APPS_SCRIPT_URL, submissionId);
-        } catch (_) {
-          confirmed = false;
-        }
-        if (confirmed) break;
+      // CONFIRMAÇÃO DO REGISTRO DA PLANILHA.
+      let confirmed=false;
+      for(let i=0;i<12;i++){
+        await new Promise(r=>setTimeout(r,700));
+        try{ confirmed=await jsonpStatus(cfg.APPS_SCRIPT_URL,submissionId); }catch(_){ confirmed=false; }
+        if(confirmed) break;
       }
+      if(!confirmed) throw new Error("O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
 
-      // O LOAD DO IFRAME SIGNIFICA QUE O POST FOI ACEITO PELO WEB APP.
-      // SE A CONSULTA JSONP DO STATUS FOR BLOQUEADA PELO NAVEGADOR,
-      // NÃO DECLARAMOS FALHA DE UM POST QUE JÁ FOI ENVIADO.
-      if (!confirmed) {
-        status("", "PROCESSANDO...", "O ENVIO FOI REALIZADO. AGUARDANDO O REGISTRO NA PLANILHA.");
-        await new Promise(r => setTimeout(r, 1500));
+      // SEGUNDO POST: FOTO. SE FALHAR, A PLANILHA JÁ ESTÁ SALVA.
+      let photoSaved=false;
+      if(original){
+        status("", "ENVIANDO FOTO...", "A RESPOSTA JÁ FOI SALVA. AGORA ENVIANDO A FOTO.");
+        const optimized=await compressImage(original,1600,0.72);
+        if(optimized.size>4*1024*1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
+        const dataUrl=await blobToDataUrl(optimized);
+        const photoResult = await postNative({
+          action:"photo",
+          submissionId:submissionId,
+          photoQuestion:photoField._photoTitle || "Foto da Entrada ou Saída",
+          mimeType:"image/jpeg",
+          photoData:dataUrl
+        },60000);
+        photoSaved=true;
       }
 
       form.classList.add("hidden");
       successBox.classList.remove("hidden");
-      status("ok", "ENVIADO COM SUCESSO", "DADOS ENCAMINHADOS PARA A PLANILHA.");
-
-      setTimeout(() => {
-        postForm.remove();
-        iframe.remove();
-      }, 1000);
-
-    } catch (err) {
+      status("ok", "ENVIADO COM SUCESSO", photoSaved ? "DADOS E FOTO REGISTRADOS." : "DADOS REGISTRADOS NA PLANILHA.");
+    } catch(err){
       console.error(err);
-      fail(
-        String(err.message || "FALHA NO ENVIO.").toUpperCase(),
-        "DETALHE DO ENVIO: " + (err.message || err)
-      );
+      fail(String(err.message||"FALHA NO ENVIO.").toUpperCase(),"DETALHE: "+(err.message||err));
     } finally {
-      submitBtn.disabled = false;
-      submitBtn.querySelector("span").textContent = "ENVIAR FORMULÁRIO";
+      submitBtn.disabled=false;
+      submitBtn.querySelector("span").textContent="ENVIAR FORMULÁRIO";
     }
   }
 
