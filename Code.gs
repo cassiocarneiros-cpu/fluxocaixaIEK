@@ -37,26 +37,46 @@ function doPost(e) {
   try {
     const p = (e && e.parameter) || {};
     const action = String(p.action || 'save').trim().toLowerCase();
-    if (action === 'photo') return handlePhoto_(p);
-    return json_({ success: false, error: 'ENVIO DE DADOS DEVE USAR ACTION=SAVE VIA GET.' });
+
+    if (action === 'photo') {
+      return handlePhoto_(p);
+    }
+
+    // O APP ENVIA OS DADOS PRINCIPAIS POR POST.
+    // A CONFIRMAÇÃO É FEITA DEPOIS PELO action=status.
+    const result = saveFromPost_(e);
+    return json_(result);
+
   } catch (err) {
     console.error(err);
-    return json_({ success: false, error: String(err && err.message ? err.message : err) });
+    return json_({
+      success: false,
+      confirmed: false,
+      error: String(err && err.message ? err.message : err)
+    });
   }
 }
 
-function saveFromGet_(p) {
+function saveFromPost_(e) {
+  const p = (e && e.parameter) || {};
   const submissionId = String(p.submissionId || '').trim();
   if (!submissionId) throw new Error('SUBMISSIONID NÃO INFORMADO.');
 
   const props = PropertiesService.getScriptProperties();
   const existing = props.getProperty('row_' + submissionId);
   if (existing) {
-    return { success: true, confirmed: true, duplicate: true, submissionId: submissionId, row: Number(existing) };
+    return {
+      success: true,
+      confirmed: true,
+      duplicate: true,
+      submissionId: submissionId,
+      row: Number(existing)
+    };
   }
 
   const questions = getFormQuestions_();
   const answers = {};
+
   questions.forEach(function(q) {
     const key = 'answer_' + q.index;
     if (Object.prototype.hasOwnProperty.call(p, key)) {
@@ -67,21 +87,39 @@ function saveFromGet_(p) {
   const sheet = getTargetSheet_();
   ensureHeaders_(sheet);
   const headers = getHeaders_(sheet);
+
   const row = headers.map(function(header) {
     const n = normalize_(header);
-    if (n === normalize_('Carimbo de data/hora') || n === normalize_('Timestamp') || n === normalize_('Data e Hora')) return new Date();
+    if (n === normalize_('Carimbo de data/hora') || n === normalize_('Timestamp') || n === normalize_('Data e Hora')) {
+      return new Date();
+    }
     return findAnswerUpper_(answers, header);
   });
 
   while (row.length < EXPECTED_HEADERS.length) row.push('');
-  sheet.getRange(sheet.getLastRow() + 1, 1, 1, row.length).setValues([row]);
+
+  const nextRow = sheet.getLastRow() + 1;
+  sheet.getRange(nextRow, 1, 1, row.length).setValues([row]);
   SpreadsheetApp.flush();
 
-  const savedRow = sheet.getLastRow();
-  props.setProperty('row_' + submissionId, String(savedRow));
+  // CONFIRMA SOMENTE DEPOIS DE A PLANILHA TER RECEBIDO A LINHA.
+  props.setProperty('row_' + submissionId, String(nextRow));
   props.setProperty('status_' + submissionId, 'OK');
 
-  return { success: true, confirmed: true, submissionId: submissionId, row: savedRow, sheet: sheet.getName(), photoSaved: false };
+  return {
+    success: true,
+    confirmed: true,
+    submissionId: submissionId,
+    row: nextRow,
+    sheet: sheet.getName(),
+    photoSaved: false
+  };
+}
+
+function saveFromGet_(p) {
+  // MANTIDO PARA COMPATIBILIDADE COM TESTES ANTIGOS.
+  const fakeEvent = { parameter: p };
+  return saveFromPost_(fakeEvent);
 }
 
 function getStatus_(id) {

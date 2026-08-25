@@ -538,9 +538,14 @@
         fields["answer_" + q.index] = String(value).toUpperCase();
       });
 
-      const saveResult = await jsonpRequest(cfg.APPS_SCRIPT_URL, fields, 30000);
-      if (!saveResult || saveResult.success !== true || saveResult.confirmed !== true) {
-        throw new Error((saveResult && saveResult.error) || "O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
+      // ENVIA OS DADOS POR POST. O RETORNO DO POST NÃO É USADO,
+      // POIS O NAVEGADOR PODE BLOQUEAR A LEITURA CROSS-ORIGIN.
+      // DEPOIS CONSULTAMOS O STATUS POR JSONP ATÉ A LINHA EXISTIR.
+      await postNative(fields, 30000);
+
+      const confirmed = await waitForStatus(cfg.APPS_SCRIPT_URL, submissionId, 30000);
+      if (!confirmed) {
+        throw new Error("O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
       }
 
       let photoSaved = false;
@@ -585,6 +590,16 @@
       script.src = url + (url.includes("?") ? "&" : "?") + query + "&callback=" + encodeURIComponent(cb);
       document.body.appendChild(script);
     });
+  }
+
+  async function waitForStatus(url, id, timeoutMs = 30000) {
+    const started = Date.now();
+    while (Date.now() - started < timeoutMs) {
+      const ok = await jsonpStatus(url, id);
+      if (ok) return true;
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+    return false;
   }
 
   function jsonpStatus(url, id) {
