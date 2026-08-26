@@ -1,16 +1,24 @@
 const CONFIG = {
+  // 1. ID do Google Forms (permanece o mesmo)
   FORM_ID: '1tEQCJRVKn_QYwYEuBrbsai7ad3Kece6rv09yo_cM7TU',
-  SPREADSHEET_ID: '11WjsgKn43-e1ed6zLDqJ9ie_rW1b_Ay-_zxCOph77TY',
-  SHEET_GID: 1782149917,
+  // 2. NOVA ID da Planilha de destino
+  SPREADSHEET_ID: '1ud_JjLPBwQL1evuGaeEKqnDrmalvwXFTW4b6A9AlUVk',
+  // 3. NOVO GID da Aba correta
+  SHEET_GID: 333379132,
+  // Nome da aba (opcional, mas recomendamos manter para referência)
   SHEET_NAME: 'Respostas ao formulário 1',
   PHOTO_FOLDER_NAME: 'FOTOS - FLUXO DE CAIXA IEK',
   STATUS_TTL_SECONDS: 21600
 };
 
+// Os cabeçalhos esperados DEVEM corresponder exatamente à nova planilha
 const EXPECTED_HEADERS = [
   'Carimbo de data/hora', 'DATA', 'NOME', 'MOVIMENTAÇÃO',
   'TIPO', 'VALOR R$', 'Foto da Entrada ou Saída', 'ENTRADAS', 'SAÍDAS'
 ];
+
+// --- O restante do código permanece IDÊNTICO ao que você já tem ---
+// (Todas as funções: doGet, doPost, saveFromPost_, getStatus_, handlePhoto_, etc.)
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -21,7 +29,6 @@ function doGet(e) {
     if (action === 'form') {
       result = { success: true, app: 'Kerigma', formTitle: FormApp.openById(CONFIG.FORM_ID).getTitle(), questions: getFormQuestions_() };
     } else if (action === 'save') {
-      // Para compatibilidade com GET (usado em testes)
       result = saveFromPost_({ parameter: p });
     } else if (action === 'status') {
       result = getStatus_(String(p.id || '').trim());
@@ -43,10 +50,7 @@ function doPost(e) {
       return handlePhoto_(p);
     }
 
-    // Salva os dados principais via POST
     const result = saveFromPost_(e);
-    
-    // Retorna JSON para o fetch (modo no-cors)
     return json_(result);
 
   } catch (err) {
@@ -166,7 +170,6 @@ function handlePhoto_(p) {
   sheet.getRange(row, col + 1).setValue(file.getUrl());
   SpreadsheetApp.flush();
   
-  // Atualiza o status para incluir a foto
   PropertiesService.getScriptProperties().setProperty('status_' + submissionId, 'OK_WITH_PHOTO');
   
   return json_({ success: true, confirmed: true, photoSaved: true, url: file.getUrl(), row: row });
