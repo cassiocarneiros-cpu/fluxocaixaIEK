@@ -1,24 +1,16 @@
 const CONFIG = {
-  // 1. ID do Google Forms (permanece o mesmo)
   FORM_ID: '1tEQCJRVKn_QYwYEuBrbsai7ad3Kece6rv09yo_cM7TU',
-  // 2. NOVA ID da Planilha de destino
-  SPREADSHEET_ID: '1ud_JjLPBwQL1evuGaeEKqnDrmalvwXFTW4b6A9AlUVk',
-  // 3. NOVO GID da Aba correta
-  SHEET_GID: 333379132,
-  // Nome da aba (opcional, mas recomendamos manter para referência)
+  SPREADSHEET_ID: '1ud_JjLPBwQL1evuGaeEKqnDrmalvwXFTW4b6A9AlUVk', // NOVA PLANILHA
+  SHEET_GID: 333379132, // NOVA ABA
   SHEET_NAME: 'Respostas ao formulário 1',
   PHOTO_FOLDER_NAME: 'FOTOS - FLUXO DE CAIXA IEK',
   STATUS_TTL_SECONDS: 21600
 };
 
-// Os cabeçalhos esperados DEVEM corresponder exatamente à nova planilha
 const EXPECTED_HEADERS = [
   'Carimbo de data/hora', 'DATA', 'NOME', 'MOVIMENTAÇÃO',
   'TIPO', 'VALOR R$', 'Foto da Entrada ou Saída', 'ENTRADAS', 'SAÍDAS'
 ];
-
-// --- O restante do código permanece IDÊNTICO ao que você já tem ---
-// (Todas as funções: doGet, doPost, saveFromPost_, getStatus_, handlePhoto_, etc.)
 
 function doGet(e) {
   const p = (e && e.parameter) || {};
@@ -157,10 +149,11 @@ function handlePhoto_(p) {
     console.warn('COMPARTILHAMENTO NÃO ALTERADO: ' + err);
   }
 
+  // 🔥 AQUI ESTÁ A CORREÇÃO: usa a NOVA planilha do CONFIG
   const row = Number(PropertiesService.getScriptProperties().getProperty('row_' + submissionId));
   if (!row) throw new Error('LINHA DO LANÇAMENTO NÃO ENCONTRADA.');
 
-  const sheet = getTargetSheet_();
+  const sheet = getTargetSheet_(); // Agora usa a nova planilha
   const headers = getHeaders_(sheet);
   const photoTitle = String(p.photoQuestion || 'Foto da Entrada ou Saída');
   let col = headers.findIndex(function(h) { return normalize_(h) === normalize_(photoTitle); });
