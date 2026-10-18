@@ -98,3 +98,9 @@ footer{text-align:center;padding:4px 16px 18px;color:#718077;font-size:11px;disp
 .photo-choice-btn{background:#214538;color:white;}
 .photo-choice-btn.file{background:#d8b66a;color:#102b25;}
 .photo-choice-cancel{background:#eef1e8;color:#102b25;}
+.pdf-preview-box{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#f3f5ed;border:1px solid #d6ddcf;border-radius:12px;
+  padding:12px 14px;font-size:13px;color:#17312a;word-break:break-all;
+}
+.photo-choice-btn.pdf{background:#8c3934;color:#fff;}
