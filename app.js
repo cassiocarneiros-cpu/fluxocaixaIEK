@@ -83,7 +83,6 @@
     const box = document.createElement("div");
     box.className = "photo-box";
 
-    // Inputs nativos
     const cameraInput = document.createElement("input");
     cameraInput.className = "photo-input-native";
     cameraInput.type = "file";
@@ -105,7 +104,6 @@
     imageInput.dataset.source = "file";
     imageInput.dataset.required = q.required ? "true" : "false";
 
-    // NOVO: input para PDF
     const pdfInput = document.createElement("input");
     pdfInput.className = "photo-input-native";
     pdfInput.type = "file";
@@ -161,7 +159,7 @@
     function handleFile(file) {
       if (!file) return;
 
-      const max = 1024 * 1024 * 1024; // 1 GB
+      const max = 1024 * 1024 * 1024;
       if (file.size > max) {
         resetSelection();
         alert("O ARQUIVO NÃO PODE ULTRAPASSAR 1 GB.");
@@ -637,7 +635,6 @@
         let fileKind = "image";
 
         if (fileType === "pdf") {
-          // PDF: envia como está (limite do Apps Script ~6MB após base64)
           if (original.size > 4 * 1024 * 1024) {
             throw new Error("O PDF NÃO PODE ULTRAPASSAR 4 MB.");
           }
@@ -645,7 +642,6 @@
           fileKind = "pdf";
           dataUrl = await blobToDataUrl(original);
         } else {
-          // Imagem: comprime como antes
           const optimized = await compressImage(original, 1600, 0.72);
           if (optimized.size > 4 * 1024 * 1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
           mimeType = "image/jpeg";
