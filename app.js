@@ -65,7 +65,6 @@
     return wrap;
   }
 
-
   function isPhotoQuestion(q) {
     return q.title && (
       q.title.toLowerCase().includes("foto da entrada") ||
@@ -84,6 +83,7 @@
     const box = document.createElement("div");
     box.className = "photo-box";
 
+    // Inputs nativos
     const cameraInput = document.createElement("input");
     cameraInput.className = "photo-input-native";
     cameraInput.type = "file";
@@ -95,27 +95,38 @@
     cameraInput.dataset.source = "camera";
     cameraInput.dataset.required = q.required ? "true" : "false";
 
-    const fileInput = document.createElement("input");
-    fileInput.className = "photo-input-native";
-    fileInput.type = "file";
-    fileInput.accept = "image/*";
-    fileInput.name = "photo_file_" + q.index;
-    fileInput.dataset.title = q.title;
-    fileInput.dataset.photo = "true";
-    fileInput.dataset.source = "file";
-    fileInput.dataset.required = q.required ? "true" : "false";
+    const imageInput = document.createElement("input");
+    imageInput.className = "photo-input-native";
+    imageInput.type = "file";
+    imageInput.accept = "image/*";
+    imageInput.name = "photo_file_" + q.index;
+    imageInput.dataset.title = q.title;
+    imageInput.dataset.photo = "true";
+    imageInput.dataset.source = "file";
+    imageInput.dataset.required = q.required ? "true" : "false";
+
+    // NOVO: input para PDF
+    const pdfInput = document.createElement("input");
+    pdfInput.className = "photo-input-native";
+    pdfInput.type = "file";
+    pdfInput.accept = "application/pdf,.pdf";
+    pdfInput.name = "pdf_file_" + q.index;
+    pdfInput.dataset.title = q.title;
+    pdfInput.dataset.photo = "true";
+    pdfInput.dataset.source = "pdf";
+    pdfInput.dataset.required = q.required ? "true" : "false";
 
     const choose = document.createElement("button");
     choose.type = "button";
     choose.className = "photo-label";
-    choose.textContent = "📷 FOTO — CÂMERA OU ARQUIVO";
+    choose.textContent = "📎 FOTO / PDF — CÂMERA, GALERIA OU ARQUIVO";
     choose.addEventListener("click", () => {
-      openPhotoChooser(cameraInput, fileInput);
+      openPhotoChooser(cameraInput, imageInput, pdfInput);
     });
 
     const info = document.createElement("div");
     info.className = "photo-info";
-    info.textContent = "TOQUE NO BOTÃO E ESCOLHA: CÂMERA DO CELULAR OU ARQUIVO/GALERIA.";
+    info.textContent = "TOQUE NO BOTÃO E ESCOLHA: CÂMERA, GALERIA OU PDF.";
 
     const preview = document.createElement("div");
     preview.className = "photo-preview";
@@ -123,64 +134,94 @@
     img.alt = "PRÉVIA DA FOTO";
     preview.appendChild(img);
 
+    const pdfPreview = document.createElement("div");
+    pdfPreview.className = "photo-preview";
+    pdfPreview.style.display = "none";
+    pdfPreview.innerHTML = '<div class="pdf-preview-box">📄 <span class="pdf-name"></span></div>';
+    const pdfNameEl = pdfPreview.querySelector(".pdf-name");
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.className = "photo-remove";
-    remove.textContent = "REMOVER FOTO";
+    remove.textContent = "REMOVER ARQUIVO";
+
+    function resetSelection() {
+      cameraInput.value = "";
+      imageInput.value = "";
+      pdfInput.value = "";
+      wrap._selectedPhotoFile = null;
+      wrap._selectedFileType = null;
+      preview.style.display = "none";
+      pdfPreview.style.display = "none";
+      remove.style.display = "none";
+      img.removeAttribute("src");
+      info.textContent = "TOQUE NO BOTÃO E ESCOLHA: CÂMERA, GALERIA OU PDF.";
+    }
 
     function handleFile(file) {
       if (!file) return;
-      const max = 1024 * 1024 * 1024;
+
+      const max = 1024 * 1024 * 1024; // 1 GB
       if (file.size > max) {
-        cameraInput.value = "";
-        fileInput.value = "";
-        alert("A FOTO NÃO PODE ULTRAPASSAR 1 GB.");
+        resetSelection();
+        alert("O ARQUIVO NÃO PODE ULTRAPASSAR 1 GB.");
         return;
       }
-      if (!file.type || !file.type.startsWith("image/")) {
-        cameraInput.value = "";
-        fileInput.value = "";
-        alert("SELECIONE UMA IMAGEM.");
+
+      const isImage = file.type && file.type.startsWith("image/");
+      const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+
+      if (!isImage && !isPdf) {
+        resetSelection();
+        alert("SELECIONE UMA IMAGEM OU UM PDF.");
         return;
       }
+
       wrap._selectedPhotoFile = file;
+      wrap._selectedFileType = isPdf ? "pdf" : "image";
       wrap._photoTitle = q.title;
-      img.src = URL.createObjectURL(file);
-      preview.style.display = "block";
+
+      if (isImage) {
+        img.src = URL.createObjectURL(file);
+        preview.style.display = "block";
+        pdfPreview.style.display = "none";
+      } else {
+        pdfNameEl.textContent = file.name + " — " + formatBytes(file.size);
+        pdfPreview.style.display = "block";
+        preview.style.display = "none";
+      }
+
       remove.style.display = "inline-block";
-      info.textContent = "FOTO SELECIONADA: " + file.name + " — " + formatBytes(file.size);
+      info.textContent = "ARQUIVO SELECIONADO: " + file.name + " — " + formatBytes(file.size);
     }
 
     cameraInput.addEventListener("change", () => handleFile(cameraInput.files && cameraInput.files[0]));
-    fileInput.addEventListener("change", () => handleFile(fileInput.files && fileInput.files[0]));
+    imageInput.addEventListener("change", () => handleFile(imageInput.files && imageInput.files[0]));
+    pdfInput.addEventListener("change", () => handleFile(pdfInput.files && pdfInput.files[0]));
 
-    remove.addEventListener("click", () => {
-      cameraInput.value = "";
-      fileInput.value = "";
-      wrap._selectedPhotoFile = null;
-      preview.style.display = "none";
-      remove.style.display = "none";
-      info.textContent = "TOQUE NO BOTÃO E ESCOLHA: CÂMERA DO CELULAR OU ARQUIVO/GALERIA.";
-    });
+    remove.addEventListener("click", resetSelection);
 
-    box.append(cameraInput, fileInput, choose, info, preview, remove);
+    box.append(cameraInput, imageInput, pdfInput, choose, info, preview, pdfPreview, remove);
     wrap._photoCameraInput = cameraInput;
-    wrap._photoFileInput = fileInput;
+    wrap._photoFileInput = imageInput;
+    wrap._photoPdfInput = pdfInput;
     wrap._selectedPhotoFile = null;
+    wrap._selectedFileType = null;
     wrap._photoTitle = q.title;
     wrap.appendChild(box);
     return wrap;
   }
 
-  function openPhotoChooser(cameraInput, fileInput) {
+  function openPhotoChooser(cameraInput, imageInput, pdfInput) {
     const modal = document.createElement("div");
     modal.className = "photo-choice-modal";
     modal.innerHTML = `
       <div class="photo-choice-card">
-        <div class="photo-choice-title">📷 FOTO DA ENTRADA OU SAÍDA</div>
-        <div class="photo-choice-subtitle">ESCOLHA DE ONDE VAI PEGAR A FOTO:</div>
+        <div class="photo-choice-title">📎 ANEXO — FOTO OU PDF</div>
+        <div class="photo-choice-subtitle">ESCOLHA DE ONDE VAI PEGAR O ARQUIVO:</div>
         <button type="button" class="photo-choice-btn camera">📸 ABRIR CÂMERA</button>
-        <button type="button" class="photo-choice-btn file">🖼️ ESCOLHER ARQUIVO / GALERIA</button>
+        <button type="button" class="photo-choice-btn file">🖼️ ESCOLHER IMAGEM / GALERIA</button>
+        <button type="button" class="photo-choice-btn pdf">📄 ESCOLHER PDF (ARQUIVOS)</button>
         <button type="button" class="photo-choice-cancel">CANCELAR</button>
       </div>`;
 
@@ -192,7 +233,11 @@
     });
     modal.querySelector(".file").addEventListener("click", () => {
       modal.remove();
-      fileInput.click();
+      imageInput.click();
+    });
+    modal.querySelector(".pdf").addEventListener("click", () => {
+      modal.remove();
+      pdfInput.click();
     });
     modal.querySelector(".photo-choice-cancel").addEventListener("click", () => modal.remove());
     modal.addEventListener("click", e => {
@@ -242,7 +287,7 @@
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error("ERRO AO LER A FOTO."));
+      reader.onerror = () => reject(new Error("ERRO AO LER O ARQUIVO."));
       reader.readAsDataURL(blob);
     });
   }
@@ -462,16 +507,7 @@
     return answers;
   }
 
-  function getPhotoContainer() {
-    return form.querySelector('.field .photo-box')?.parentElement || null;
-  }
-
-  function getSelectedPhotoFile() {
-    const field = form.querySelector('.photo-box')?.parentElement;
-    return field && field._selectedPhotoFile ? field._selectedPhotoFile : null;
-  }
-
-  function postNative(fields, timeoutMs = 30000) {
+  function postNative(fields, timeoutMs = 60000) {
     return new Promise((resolve, reject) => {
       const iframeName = "kerigma_submit_frame_" + Date.now() + "_" + Math.random().toString(36).slice(2);
       const iframe = document.createElement("iframe");
@@ -506,11 +542,10 @@
     });
   }
 
-  // Função para enviar dados via POST com fetch (mais confiável que iframe)
   async function postFetch(url, data, timeoutMs = 30000) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    
+
     try {
       const formData = new URLSearchParams();
       Object.entries(data).forEach(([key, value]) => {
@@ -521,20 +556,15 @@
         }
       });
 
-      const response = await fetch(url, {
+      await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: formData.toString(),
         signal: controller.signal,
-        mode: 'no-cors' // Importante para CORS com Apps Script
+        mode: 'no-cors'
       });
 
       clearTimeout(timeout);
-      
-      // Com no-cors, não podemos ler a resposta diretamente
-      // Vamos usar o método de status via JSONP para confirmar
       return true;
     } catch (err) {
       clearTimeout(timeout);
@@ -545,7 +575,6 @@
     }
   }
 
-  // Função para verificar status via JSONP
   async function checkStatusViaJsonp(submissionId, timeoutMs = 30000) {
     const started = Date.now();
     while (Date.now() - started < timeoutMs) {
@@ -554,9 +583,7 @@
         if (result && result.confirmed === true) {
           return result;
         }
-      } catch (e) {
-        // continua tentando
-      }
+      } catch (e) { /* continua */ }
       await new Promise(resolve => setTimeout(resolve, 1500));
     }
     return null;
@@ -571,19 +598,19 @@
     const answers = collect();
     const photoField = form.querySelector('.photo-box')?.parentElement;
     const original = photoField && photoField._selectedPhotoFile ? photoField._selectedPhotoFile : null;
+    const fileType = photoField && photoField._selectedFileType ? photoField._selectedFileType : null;
     const photoRequired = !!(photoField && photoField.querySelector('input[data-required="true"]'));
-    if (photoRequired && !original) { fail("A FOTO É OBRIGATÓRIA."); return; }
+    if (photoRequired && !original) { fail("O ANEXO É OBRIGATÓRIO."); return; }
 
     try {
       submitBtn.disabled = true;
       submitBtn.querySelector("span").textContent = "ENVIANDO...";
       status("", "SALVANDO...", "GRAVANDO AS RESPOSTAS NA PLANILHA.");
 
-      // Prepara os dados para enviar via POST
-      const fields = { 
-        action: "save", 
-        submissionId: submissionId, 
-        submittedAt: new Date().toISOString() 
+      const fields = {
+        action: "save",
+        submissionId: submissionId,
+        submittedAt: new Date().toISOString()
       };
       const qs = (window.__kerigmaQuestions || []);
       qs.forEach(q => {
@@ -592,36 +619,56 @@
         fields["answer_" + q.index] = String(value).toUpperCase();
       });
 
-      // Envia via POST com fetch (no-cors)
       await postFetch(cfg.APPS_SCRIPT_URL, fields, 30000);
 
-      // Aguarda a confirmação via JSONP
       status("", "AGUARDANDO CONFIRMAÇÃO...", "VERIFICANDO SE OS DADOS FORAM GRAVADOS.");
       const confirmation = await checkStatusViaJsonp(submissionId, 30000);
-      
+
       if (!confirmation || confirmation.confirmed !== true) {
         throw new Error("O APPS SCRIPT NÃO CONFIRMOU A GRAVAÇÃO DA PLANILHA.");
       }
 
-      let photoSaved = false;
+      let fileSaved = false;
       if (original) {
-        status("", "ENVIANDO FOTO...", "A RESPOSTA JÁ FOI SALVA. AGORA ENVIANDO A FOTO.");
-        const optimized = await compressImage(original, 1600, 0.72);
-        if (optimized.size > 4 * 1024 * 1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
-        const dataUrl = await blobToDataUrl(optimized);
-        await postNative({ 
-          action: "photo", 
-          submissionId: submissionId, 
-          photoQuestion: photoField._photoTitle || "Foto da Entrada ou Saída", 
-          mimeType: "image/jpeg", 
-          photoData: dataUrl 
+        status("", "ENVIANDO ANEXO...", "A RESPOSTA JÁ FOI SALVA. AGORA ENVIANDO O ARQUIVO.");
+
+        let mimeType = "image/jpeg";
+        let dataUrl;
+        let fileKind = "image";
+
+        if (fileType === "pdf") {
+          // PDF: envia como está (limite do Apps Script ~6MB após base64)
+          if (original.size > 4 * 1024 * 1024) {
+            throw new Error("O PDF NÃO PODE ULTRAPASSAR 4 MB.");
+          }
+          mimeType = "application/pdf";
+          fileKind = "pdf";
+          dataUrl = await blobToDataUrl(original);
+        } else {
+          // Imagem: comprime como antes
+          const optimized = await compressImage(original, 1600, 0.72);
+          if (optimized.size > 4 * 1024 * 1024) throw new Error("A FOTO NÃO PÔDE SER REDUZIDA O SUFICIENTE.");
+          mimeType = "image/jpeg";
+          fileKind = "image";
+          dataUrl = await blobToDataUrl(optimized);
+        }
+
+        await postNative({
+          action: "photo",
+          submissionId: submissionId,
+          photoQuestion: photoField._photoTitle || "Foto da Entrada ou Saída",
+          mimeType: mimeType,
+          fileKind: fileKind,
+          fileName: original.name || "",
+          photoData: dataUrl
         }, 60000);
-        photoSaved = true;
+
+        fileSaved = true;
       }
 
       form.classList.add("hidden");
       successBox.classList.remove("hidden");
-      status("ok", "ENVIADO COM SUCESSO", photoSaved ? "DADOS E FOTO REGISTRADOS." : "DADOS REGISTRADOS NA PLANILHA.");
+      status("ok", "ENVIADO COM SUCESSO", fileSaved ? "DADOS E ANEXO REGISTRADOS." : "DADOS REGISTRADOS NA PLANILHA.");
     } catch (err) {
       console.error(err);
       fail(String(err.message || "FALHA NO ENVIO.").toUpperCase(), "DETALHE: " + (err.message || err));
