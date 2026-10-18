@@ -81,7 +81,7 @@ footer{text-align:center;padding:4px 16px 18px;color:#718077;font-size:11px;disp
 .photo-box{border:2px dashed #b8c8b3;background:#f4f7ef;border-radius:14px;padding:14px;text-align:center}
 .photo-input{display:none}
 .photo-input-native{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-.photo-label{display:flex;align-items:center;justify-content:center;gap:9px;background:#214538;color:white;padding:13px;border-radius:12px;font-weight:800;cursor:pointer}
+.photo-label{display:flex;align-items:center;justify-content:center;gap:9px;background:#214538;color:white;padding:13px;border-radius:12px;font-weight:800;cursor:pointer;width:100%;border:0;font:inherit;touch-action:manipulation;}
 .photo-preview{margin-top:12px;display:none}
 .photo-preview img{max-width:100%;max-height:240px;border-radius:12px;object-fit:contain;border:1px solid #d6ddcf}
 .photo-info{font-size:11px;color:#64736b;margin-top:8px;line-height:1.4}
@@ -89,7 +89,6 @@ footer{text-align:center;padding:4px 16px 18px;color:#718077;font-size:11px;disp
 .upload-progress{display:none;margin-top:10px;height:8px;background:#dfe7da;border-radius:99px;overflow:hidden}
 .upload-progress span{display:block;height:100%;width:0;background:#d8b66a;transition:width .2s}
 
-.photo-label{width:100%;border:0;font:inherit;touch-action:manipulation;}
 .photo-choice-modal{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:18px;}
 .photo-choice-card{width:min(420px,100%);background:#fffdf7;border-radius:20px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;}
 .photo-choice-title{font-weight:900;color:#102b25;font-size:17px;margin-bottom:8px;}
@@ -97,10 +96,11 @@ footer{text-align:center;padding:4px 16px 18px;color:#718077;font-size:11px;disp
 .photo-choice-btn,.photo-choice-cancel{width:100%;border:0;border-radius:13px;padding:14px;margin-top:9px;font:inherit;font-weight:800;cursor:pointer;touch-action:manipulation;}
 .photo-choice-btn{background:#214538;color:white;}
 .photo-choice-btn.file{background:#d8b66a;color:#102b25;}
+.photo-choice-btn.pdf{background:#8c3934;color:#fff;}
 .photo-choice-cancel{background:#eef1e8;color:#102b25;}
+
 .pdf-preview-box{
   display:inline-flex;align-items:center;gap:8px;
   background:#f3f5ed;border:1px solid #d6ddcf;border-radius:12px;
   padding:12px 14px;font-size:13px;color:#17312a;word-break:break-all;
 }
-.photo-choice-btn.pdf{background:#8c3934;color:#fff;}
