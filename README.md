@@ -1,30 +1,41 @@
-# KERIGMA V5.4.2 — Fluxo de Caixa da IEK
+# KERIGMA V5.5.0 — Fluxo de Caixa da IEK
 
 Fluxo de Caixa IEK para GitHub Pages + Google Apps Script + Google Sheets + Google Drive.
 
 ## 🔧 Alterações nesta versão
 
-- **Atualizada a URL do Apps Script** para a nova implantação.
-- **Redirecionamento para a nova planilha** configurada.
-- **Corrigido o envio dos dados principais**: Utiliza `fetch` com `no-cors` para enviar os dados via POST.
-- **Confirmação via JSONP**: Após o envio, o sistema verifica o status da gravação.
-- **Mais robusto**: Funciona em Android, iPhone e Windows.
+- **Anexo de FOTO ou PDF**: o campo de anexo agora aceita câmera, galeria de imagens e arquivos PDF do celular.
+- **Envio inteligente**: imagens são comprimidas antes do envio; PDFs são enviados como estão (limite ~4 MB).
+- **Armazenamento correto**: imagens salvas como `.jpg` e PDFs como `.pdf` na mesma pasta do Drive.
+- **Link na planilha**: o link do anexo é gravado na coluna "Foto da Entrada ou Saída".
+- **Título atualizado**: "Fluxo de Caixa da IEK".
 
 ## 📋 Instruções de implantação
 
 ### Apps Script
-1. A nova implantação já está criada e ativa.
-2. A URL `/exec` usada pelo app já está atualizada em `config.js`.
+1. Abra o Apps Script vinculado à implantação atual.
+2. Apague todo o conteúdo do `Code.gs` e cole o `Code.gs` deste pacote.
+3. Salve o projeto.
+4. Execute `testarConfiguracao` uma vez e autorize os acessos solicitados.
+5. Vá em **Implantar > Gerenciar implantações > Editar**.
+6. Crie uma **nova versão** e mantenha o Web App como acesso para **Qualquer pessoa**.
+7. A URL `/exec` usada pelo app já está em `config.js`.
 
 ### GitHub Pages
-1. Atualize o arquivo `config.js` com a nova URL.
-2. Faça o commit e push das alterações para o repositório.
-3. O GitHub Pages atualizará automaticamente o aplicativo.
+1. Faça o upload de todos os arquivos para seu repositório.
+2. Ative o GitHub Pages no repositório.
+3. Acesse a URL gerada.
 
 ## 🧪 Teste
-1. Acesse a URL do GitHub Pages.
-2. Preencha o formulário e envie.
-3. Verifique se os dados aparecem na nova planilha.
+1. Primeiro teste sem anexo.
+2. Depois teste com foto.
+3. Depois teste com PDF.
+4. Verifique se os dados e o link do anexo aparecem na planilha.
+
+## ⚠️ Limites
+- **Imagens**: comprimidas automaticamente para até ~5 MB.
+- **PDFs**: até ~4 MB (limite prático do payload do Web App).
+- **Pasta no Drive**: `FOTOS - FLUXO DE CAIXA IEK`.
 
 ## 📁 Estrutura
 - `index.html` — Página principal
