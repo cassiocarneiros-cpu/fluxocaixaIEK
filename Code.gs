@@ -1,7 +1,7 @@
 const CONFIG = {
   FORM_ID: '1tEQCJRVKn_QYwYEuBrbsai7ad3Kece6rv09yo_cM7TU',
-  SPREADSHEET_ID: '1ud_JjLPBwQL1evuGaeEKqnDrmalvwXFTW4b6A9AlUVk', // NOVA PLANILHA
-  SHEET_GID: 333379132, // NOVA ABA
+  SPREADSHEET_ID: '1ud_JjLPBwQL1evuGaeEKqnDrmalvwXFTW4b6A9AlUVk',
+  SHEET_GID: 333379132,
   SHEET_NAME: 'Respostas ao formulário 1',
   PHOTO_FOLDER_NAME: 'FOTOS - FLUXO DE CAIXA IEK',
   STATUS_TTL_SECONDS: 21600
@@ -117,10 +117,10 @@ function getStatus_(id) {
   if (!id) return { success: false, confirmed: false, error: 'ID NÃO INFORMADO.' };
   const row = PropertiesService.getScriptProperties().getProperty('row_' + id);
   const status = PropertiesService.getScriptProperties().getProperty('status_' + id);
-  return { 
-    success: !!row, 
-    confirmed: !!row, 
-    submissionId: id, 
+  return {
+    success: !!row,
+    confirmed: !!row,
+    submissionId: id,
     row: row ? Number(row) : null,
     status: status || 'PENDING'
   };
@@ -128,20 +128,25 @@ function getStatus_(id) {
 
 function handlePhoto_(p) {
   const submissionId = String(p.submissionId || '').trim();
-  if (!submissionId) throw new Error('SUBMISSIONID NÃO INFORMADO PARA FOTO.');
+  if (!submissionId) throw new Error('SUBMISSIONID NÃO INFORMADO PARA ANEXO.');
 
   const dataUrl = String(p.photoData || '');
-  if (!dataUrl) throw new Error('FOTO NÃO RECEBIDA.');
+  if (!dataUrl) throw new Error('ANEXO NÃO RECEBIDO.');
   const comma = dataUrl.indexOf(',');
-  if (comma < 0) throw new Error('FORMATO DA FOTO INVÁLIDO.');
+  if (comma < 0) throw new Error('FORMATO DO ANEXO INVÁLIDO.');
 
   const bytes = Utilities.base64Decode(dataUrl.substring(comma + 1));
-  if (bytes.length > 6 * 1024 * 1024) throw new Error('FOTO OTIMIZADA MAIOR QUE 6 MB.');
+  if (bytes.length > 6 * 1024 * 1024) throw new Error('ANEXO MAIOR QUE 6 MB.');
 
-  const mime = String(p.mimeType || 'image/jpeg');
-  const blob = Utilities.newBlob(bytes, mime, 'FLUXO_CAIXA_' + submissionId + '.jpg');
+  const fileKind = String(p.fileKind || 'image').toLowerCase();
+  const isPdf = fileKind === 'pdf';
+  const mime = String(p.mimeType || (isPdf ? 'application/pdf' : 'image/jpeg'));
+  const ext = isPdf ? '.pdf' : '.jpg';
+  const fileName = 'FLUXO_CAIXA_' + submissionId + ext;
+
+  const blob = Utilities.newBlob(bytes, mime, fileName);
   const file = getPhotoFolder_().createFile(blob);
-  file.setName('FLUXO_CAIXA_' + submissionId + '.jpg');
+  file.setName(fileName);
 
   try {
     file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
@@ -149,23 +154,22 @@ function handlePhoto_(p) {
     console.warn('COMPARTILHAMENTO NÃO ALTERADO: ' + err);
   }
 
-  // 🔥 AQUI ESTÁ A CORREÇÃO: usa a NOVA planilha do CONFIG
   const row = Number(PropertiesService.getScriptProperties().getProperty('row_' + submissionId));
   if (!row) throw new Error('LINHA DO LANÇAMENTO NÃO ENCONTRADA.');
 
-  const sheet = getTargetSheet_(); // Agora usa a nova planilha
+  const sheet = getTargetSheet_();
   const headers = getHeaders_(sheet);
   const photoTitle = String(p.photoQuestion || 'Foto da Entrada ou Saída');
   let col = headers.findIndex(function(h) { return normalize_(h) === normalize_(photoTitle); });
   if (col < 0) col = headers.findIndex(function(h) { return normalize_(h) === normalize_('Foto da Entrada ou Saída'); });
-  if (col < 0) throw new Error('COLUNA DA FOTO NÃO ENCONTRADA.');
+  if (col < 0) throw new Error('COLUNA DO ANEXO NÃO ENCONTRADA.');
 
   sheet.getRange(row, col + 1).setValue(file.getUrl());
   SpreadsheetApp.flush();
-  
-  PropertiesService.getScriptProperties().setProperty('status_' + submissionId, 'OK_WITH_PHOTO');
-  
-  return json_({ success: true, confirmed: true, photoSaved: true, url: file.getUrl(), row: row });
+
+  PropertiesService.getScriptProperties().setProperty('status_' + submissionId, 'OK_WITH_FILE');
+
+  return json_({ success: true, confirmed: true, photoSaved: true, fileSaved: true, url: file.getUrl(), row: row, kind: isPdf ? 'pdf' : 'image' });
 }
 
 function getPhotoFolder_() {
